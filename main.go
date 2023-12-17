@@ -5,6 +5,7 @@ import (
 
 	"github.com/songgao/packets/ethernet"
 	"github.com/songgao/water"
+	"github.com/vishvananda/netlink"
 )
 
 func main() {
@@ -17,6 +18,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	pierIface, _ := netlink.LinkByName("skypier0")
+	addr, _ := netlink.ParseAddr("10.1.0.10/24")
+	netlink.AddrAdd(pierIface, addr)
+	netlink.LinkSetUp(pierIface)
+
 	var frame ethernet.Frame
 
 	for {
