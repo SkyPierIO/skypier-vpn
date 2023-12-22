@@ -25,14 +25,12 @@ func main() {
 	router.Use(cors.Default())
 
 	fmt.Println("───────────────────────────────────────────────────")
-	fmt.Println("🌎😎 ~~ YOU ARE RUNNING KUBO SOCKS PLUGIN ~~  😎🌎")
-	fmt.Println("           ~~ let's browse the GALAXY ~~      ")
+	fmt.Println("🌎😎      ~~ WELCOME TO YOUR SKYPIER ~~        😎🌎")
+	fmt.Println("    ~~ let's browse freely and anonymously ~~      ")
 	fmt.Println("───────────────────────────────────────────────────")
 
-	go func() {
-		// http.ListenAndServe("localhost:8081", serverMuxA)
-		controllers.SetInterfaceUp()
-	}()
+	go controllers.SetNodeUp()
+	go controllers.SetInterfaceUp()
 
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
