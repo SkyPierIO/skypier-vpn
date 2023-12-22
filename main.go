@@ -2,77 +2,54 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"strconv"
 
-	"github.com/libp2p/go-libp2p"
-	peerstore "github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
-	"github.com/songgao/packets/ethernet"
-	"github.com/songgao/water"
-	"github.com/vishvananda/netlink"
+	"github.com/gin-contrib/cors"
+	"github.com/smolgroot/dvpn/controllers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
-	// start a libp2p node that listens on a random local TCP port,
-	// but without running the built-in ping protocol
-	node, err := libp2p.New(
-		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
-		libp2p.Ping(false),
-	)
-	if err != nil {
-		panic(err)
-	}
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
+	router.Use(cors.Default())
 
-	// configure our own ping protocol
-	pingService := &ping.PingService{Host: node}
-	node.SetStreamHandler(ping.ID, pingService.PingHandler)
-
-	// print node ID
 	fmt.Println("───────────────────────────────────────────────────")
-	fmt.Println("libp2p peer ID:\n", node.ID())
-
-	// print the node's PeerInfo in multiaddr format
-	peerInfo := peerstore.AddrInfo{
-		ID:    node.ID(),
-		Addrs: node.Addrs(),
-	}
-	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("libp2p peer address:\n", addrs[0])
+	fmt.Println("🌎😎 ~~ YOU ARE RUNNING KUBO SOCKS PLUGIN ~~  😎🌎")
+	fmt.Println("           ~~ let's browse the GALAXY ~~      ")
 	fmt.Println("───────────────────────────────────────────────────")
 
-	// ptp = p2p.New(node.ID(), nil)
+	go func() {
+		// http.ListenAndServe("localhost:8081", serverMuxA)
+		controllers.SetInterfaceUp()
+	}()
 
-	config := water.Config{
-		DeviceType: water.TAP,
-	}
-	config.Name = "skypier0"
+	// Recovery middleware recovers from any panics and writes a 500 if there was one.
+	router.Use(gin.Recovery())
+	router.GET("/", func(c *gin.Context) {
+		c.String(200, "OK")
+	})
 
-	ifce, err := water.New(config)
-	if err != nil {
-		log.Fatal(err)
-	}
+	api := router.Group("/api/v0")
+	api.GET("/", func(c *gin.Context) {
+		c.String(200, "OK")
+	})
+	api.GET("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
+	// api.GET("/streams", controllers.ListStreams)
+	// api.GET("/listeners", controllers.ListListeners)
+	// api.GET("/peers", controllers.ShowPeers)
+	// api.GET("/forward/:nodeID", controllers.Forward)
+	// api.GET("/ping/:nodeID", controllers.Ping)
+	// api.GET("/streams/close", controllers.CloseAllSteams)
+	// api.GET("/id", controllers.GetID)
 
-	pierIface, _ := netlink.LinkByName("skypier0")
-	addr, _ := netlink.ParseAddr("10.1.0.10/24")
-	netlink.AddrAdd(pierIface, addr)
-	netlink.LinkSetUp(pierIface)
+	// Enable the Listener by default on the proxy port
+	// protocol := "/x/skypier/1.0"
 
-	var frame ethernet.Frame
-
-	for {
-		frame.Resize(1500)
-		n, err := ifce.Read([]byte(frame))
-		if err != nil {
-			log.Fatal(err)
-		}
-		frame = frame[:n]
-		log.Printf("Dst: %s\n", frame.Destination())
-		log.Printf("Src: %s\n", frame.Source())
-		log.Printf("Ethertype: % x\n", frame.Ethertype())
-		log.Printf("Payload: % x\n", frame.Payload())
-	}
+	// Run with HTTP
+	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(8081), 10))
 }
