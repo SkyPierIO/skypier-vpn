@@ -10,7 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Config struct {
+	Port            int
+	Protocol        string
+	ProtocolVersion string
+}
+
 func main() {
+
+	config := Config{8081, "skypier", "1.0"}
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
@@ -51,5 +59,5 @@ func main() {
 	// protocol := "/x/skypier/1.0"
 
 	// Run with HTTP
-	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(8081), 10))
+	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(config.Port), 10))
 }
