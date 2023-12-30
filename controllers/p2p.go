@@ -3,6 +3,8 @@ package controllers
 import (
 	"fmt"
 
+	b64 "encoding/base64"
+
 	"github.com/SkyPierIO/skypier-vpn/utils"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -11,15 +13,32 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
-func SetNodeUp() {
-
-	// Creates a new 4096 RSA key pair for this Node.
-
-	fmt.Println("Generating identity...")
-	privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 4096)
+func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func loadPrivateKey() (crypto.PrivKey, error) {
+	config, err := utils.LoadConfiguration("./config")
+	if err != nil {
+		privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
+		if err != nil {
+			return nil, err
+		}
+		return privKey, nil
+	} else {
+		privKey, err := crypto.UnmarshalPrivateKey([]byte(config.PrivateKey)) // TODO read PK from cfg
+		check(err)
+		return privKey, nil
+	}
+}
+
+func SetNodeUp() {
+
+	fmt.Println("Generating identity...")
+	privKey, err := loadPrivateKey()
+	check(err)
 
 	// Find available port for both TCP and UDP
 
@@ -52,9 +71,12 @@ func SetNodeUp() {
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
 	)
-	if err != nil {
-		panic(err)
-	}
+	check(err)
+
+	keyBytes, err := crypto.MarshalPrivateKey(node.Peerstore().PrivKey(node.ID()))
+	check(err)
+	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
+	fmt.Println(sEnc)
 
 	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
