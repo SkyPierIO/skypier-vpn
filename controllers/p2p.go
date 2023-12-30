@@ -29,9 +29,10 @@ func SetNodeUp() {
 
 	node, err := libp2p.New(
 		libp2p.ListenAddrStrings(
-			"/ip6/::/udp/0/quic",      // IPv6 QUIC
-			"/ip4/0.0.0.0/udp/0/quic", // IPv4 QUIC
-			"/ip4/127.0.0.1/tcp/0",    // IPv4 TCP
+			"/ip6/::/udp/8888/quic-v1",      // IPv6 QUIC
+			"/ip4/0.0.0.0/udp/8888/quic-v1", // IPv4 QUIC
+			"/ip6/0.0.0.0/tcp/0",            // IPv6 TCP
+			"/ip4/0.0.0.0/tcp/0",            // IPv4 TCP
 		),
 		libp2p.DefaultSecurity,
 		libp2p.Transport(quic.NewTransport),
@@ -66,7 +67,7 @@ func SetNodeUp() {
 
 	// print node ID
 	fmt.Println("───────────────────────────────────────────────────")
-	fmt.Println("libp2p peer ID:\n", node.ID())
+	fmt.Println("libp2p peer ID:\n\t", node.ID())
 
 	// print the node's PeerInfo in multiaddr format
 	peerInfo := peerstore.AddrInfo{
@@ -77,7 +78,10 @@ func SetNodeUp() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("libp2p peer address:\n", addrs[0])
+	fmt.Println("libp2p peer address:")
+	for i := 0; i < len(addrs); i++ {
+		fmt.Println("\t", addrs[i])
+	}
 	fmt.Println("───────────────────────────────────────────────────")
 
 }
