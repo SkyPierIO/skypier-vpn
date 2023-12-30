@@ -41,4 +41,6 @@ func SetInterfaceUp() {
 	}
 }
 
-func SetInterfaceDown() {}
+func SetInterfaceDown() {
+	// TODO implement it
+}

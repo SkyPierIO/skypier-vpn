@@ -36,14 +36,33 @@ func SetNodeUp() {
 		libp2p.DefaultSecurity,
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Ping(false),
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	// // configure our own ping protocol
+	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
 	// node.SetStreamHandler(ping.ID, pingService.PingHandler)
+
+	// addr, err := multiaddr.NewMultiaddr("/p2p/12D3KooWB7JEdAmeuranEgNDqKZ738ynUcZMhaTQoAzN9wxGPL3H")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// peer, err := peerstore.AddrInfoFromP2pAddr(addr)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// if err := node.Connect(context.Background(), *peer); err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println("sending 3 ping messages to", addr)
+	// ch := pingService.Ping(context.Background(), peer.ID)
+	// for i := 0; i < 3; i++ {
+	// 	res := <-ch
+	// 	fmt.Println("pinged", addr, "in", res.RTT)
+	// }
 
 	// print node ID
 	fmt.Println("───────────────────────────────────────────────────")

@@ -25,7 +25,7 @@ func main() {
 	router.Use(cors.Default())
 
 	fmt.Println("───────────────────────────────────────────────────")
-	fmt.Println("🌎😎      ~~ WELCOME TO YOUR SKYPIER ~~        😎🌎")
+	fmt.Println("🌎😎            ~~ SKYPIER VPN ~~              😎🌎")
 	fmt.Println("    ~~ let's browse freely and anonymously ~~      ")
 	fmt.Println("───────────────────────────────────────────────────")
 
@@ -51,7 +51,6 @@ func main() {
 	// api.GET("/peers", controllers.ShowPeers)
 	// api.GET("/forward/:nodeID", controllers.Forward)
 	// api.GET("/ping/:nodeID", controllers.Ping)
-	// api.GET("/streams/close", controllers.CloseAllSteams)
 	// api.GET("/id", controllers.GetID)
 	// Enable the Listener by default on the proxy port
 	// protocol := "/x/skypier/1.0"
