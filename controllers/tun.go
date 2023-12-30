@@ -15,7 +15,7 @@ func SetInterfaceUp() {
 	}
 	config.Name = "skypier0"
 
-	ifce, err := water.New(config)
+	iface, err := water.New(config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func SetInterfaceUp() {
 
 	for {
 		frame.Resize(1500) // MTU
-		n, err := ifce.Read([]byte(frame))
+		n, err := iface.Read([]byte(frame))
 		if err != nil {
 			log.Fatal(err)
 		}

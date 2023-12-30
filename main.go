@@ -45,6 +45,7 @@ func main() {
 	api.GET("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
 	})
+	// api.GET("/init", controllers.SetNodeUp)
 	// api.GET("/streams", controllers.ListStreams)
 	// api.GET("/listeners", controllers.ListListeners)
 	// api.GET("/peers", controllers.ShowPeers)
@@ -52,7 +53,6 @@ func main() {
 	// api.GET("/ping/:nodeID", controllers.Ping)
 	// api.GET("/streams/close", controllers.CloseAllSteams)
 	// api.GET("/id", controllers.GetID)
-
 	// Enable the Listener by default on the proxy port
 	// protocol := "/x/skypier/1.0"
 
