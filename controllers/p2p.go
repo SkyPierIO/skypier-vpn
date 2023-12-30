@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 
+	"github.com/SkyPierIO/skypier-vpn/utils"
 	"github.com/libp2p/go-libp2p"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
@@ -10,6 +11,9 @@ import (
 )
 
 func SetNodeUp() {
+
+	tcpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
+	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
 
 	// Start a libp2p node
 	// that listens on a random local TCP port
@@ -29,10 +33,10 @@ func SetNodeUp() {
 
 	node, err := libp2p.New(
 		libp2p.ListenAddrStrings(
-			"/ip6/::/udp/8888/quic-v1",      // IPv6 QUIC
-			"/ip4/0.0.0.0/udp/8888/quic-v1", // IPv4 QUIC
-			"/ip6/0.0.0.0/tcp/0",            // IPv6 TCP
-			"/ip4/0.0.0.0/tcp/0",            // IPv4 TCP
+			"/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC
+			"/ip4/0.0.0.0/udp/"+udpPort+"/quic-v1", // IPv4 QUIC
+			"/ip6/::/tcp/"+tcpPort,                 // IPv6 TCP
+			"/ip4/0.0.0.0/tcp/"+tcpPort,            // IPv4 TCP
 		),
 		libp2p.DefaultSecurity,
 		libp2p.Transport(quic.NewTransport),
