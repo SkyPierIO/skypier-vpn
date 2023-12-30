@@ -5,6 +5,7 @@ import (
 
 	"github.com/SkyPierIO/skypier-vpn/utils"
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
@@ -12,13 +13,21 @@ import (
 
 func SetNodeUp() {
 
+	// Creates a new 4096 RSA key pair for this Node.
+
+	fmt.Println("Generating identity...")
+	privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 4096)
+	if err != nil {
+		panic(err)
+	}
+
+	// Find available port for both TCP and UDP
+
 	tcpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
 	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
 
 	// Start a libp2p node
-	// that listens on a random local TCP port
-
-	// ----------------------------------------
+	// ----------------------------------------------------------
 
 	// QUIC is an UDP-based transport protocol.
 	// QUIC connections are always encrypted (using TLS 1.3) and
@@ -38,10 +47,10 @@ func SetNodeUp() {
 			"/ip6/::/tcp/"+tcpPort,                 // IPv6 TCP
 			"/ip4/0.0.0.0/tcp/"+tcpPort,            // IPv4 TCP
 		),
+		libp2p.Identity(privKey),
 		libp2p.DefaultSecurity,
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Ping(false),
 	)
 	if err != nil {
 		panic(err)
