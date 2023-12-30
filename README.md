@@ -1,3 +1,3 @@
-# dvpn
+# Skypier VPN
 
-dVPN POC
+decentralized VPN POC

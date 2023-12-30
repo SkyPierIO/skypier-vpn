@@ -1,4 +1,4 @@
-module github.com/smolgroot/dvpn
+module github.com/SkyPierIO/skypier-vpn
 
 go 1.20
 

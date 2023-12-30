@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/SkyPierIO/skypier-vpn/controllers"
 	"github.com/gin-contrib/cors"
-	"github.com/smolgroot/dvpn/controllers"
 
 	"github.com/gin-gonic/gin"
 )
