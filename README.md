@@ -18,6 +18,8 @@ sudo ./skypier-vpn
 - [ ] Init TUN interface on Darwin
 - [ ] Init TUN interface on Windows
 - [ ] Launch web UI at launch
-- [ ] Ensure QUIC protocol first
+- [x] Enable QUIC protocol 
+- [ ] Ensure QUIC protocol first (need more test)
 - [ ] Check remote peer is reachable
 - [ ] Mount tunnel with remote address corresponding to this peer ID (check the DHT)
+- [ ] If "privateKey" is given in the config, bootsrap the node using this private key
