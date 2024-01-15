@@ -21,7 +21,7 @@ func SetInterfaceUp() {
 	}
 
 	pierIface, _ := netlink.LinkByName("skypier0")
-	addr, _ := netlink.ParseAddr("10.1.0.10/24") // TODO remove static IP
+	addr, _ := netlink.ParseAddr("10.1.1.1/24") // TODO remove static IP
 	netlink.AddrAdd(pierIface, addr)
 	netlink.LinkSetUp(pierIface)
 
