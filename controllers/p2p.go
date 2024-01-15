@@ -38,7 +38,7 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 	}
 }
 
-func displayNodeInfo(node host.Host) {
+func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	// print node ID
 	fmt.Println("───────────────────────────────────────────────────")
 	fmt.Println("libp2p peer ID:\n\t", node.ID())
@@ -57,6 +57,11 @@ func displayNodeInfo(node host.Host) {
 		fmt.Println("\t", addrs[i])
 	}
 	fmt.Println("───────────────────────────────────────────────────")
+
+	pubKey, err := dht.GetPublicKey(context.Background(), node.ID())
+	check(err)
+
+	fmt.Println("DHT Pub Key Struct : ", pubKey)
 }
 
 func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
@@ -111,10 +116,7 @@ func SetNodeUp() {
 
 	node, dht, err := BootstrapNode(privKey, tcpPort, udpPort)
 	check(err)
-
-	fmt.Println(dht)
-
-	displayNodeInfo(node)
+	displayNodeInfo(node, dht)
 
 	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
