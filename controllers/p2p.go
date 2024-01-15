@@ -1,13 +1,17 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	b64 "encoding/base64"
 
 	"github.com/SkyPierIO/skypier-vpn/utils"
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
@@ -34,18 +38,8 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 	}
 }
 
-func SetNodeUp() {
-
-	fmt.Println("Generating identity...")
-	privKey, err := loadPrivateKey()
-	check(err)
-
-	// Find available port for both TCP and UDP
-
-	tcpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
-	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
-
-	// Start a libp2p node
+func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
+	// Init a libp2p node
 	// ----------------------------------------------------------
 
 	// QUIC is an UDP-based transport protocol.
@@ -66,7 +60,7 @@ func SetNodeUp() {
 			"/ip6/::/tcp/"+tcpPort,                 // IPv6 TCP
 			"/ip4/0.0.0.0/tcp/"+tcpPort,            // IPv4 TCP
 		),
-		libp2p.Identity(privKey),
+		libp2p.Identity(pk),
 		libp2p.DefaultSecurity,
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
@@ -77,6 +71,28 @@ func SetNodeUp() {
 	check(err)
 	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
 	fmt.Println(sEnc)
+
+	// Create private DHT
+	newDHT := dht.NewDHTClient(context.Background(), node, datastore.NewMapDatastore())
+
+	return node, newDHT, err
+}
+
+func SetNodeUp() {
+
+	fmt.Println("Generating identity...")
+	privKey, err := loadPrivateKey()
+	check(err)
+
+	// Find available port for both TCP and UDP
+
+	tcpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
+	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
+
+	node, dht, err := BootstrapNode(privKey, tcpPort, udpPort)
+	check(err)
+
+	fmt.Println(dht)
 
 	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
