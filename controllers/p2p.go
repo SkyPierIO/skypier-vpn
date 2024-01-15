@@ -38,6 +38,27 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 	}
 }
 
+func displayNodeInfo(node host.Host) {
+	// print node ID
+	fmt.Println("───────────────────────────────────────────────────")
+	fmt.Println("libp2p peer ID:\n\t", node.ID())
+
+	// print the node's PeerInfo in multiaddr format
+	peerInfo := peerstore.AddrInfo{
+		ID:    node.ID(),
+		Addrs: node.Addrs(),
+	}
+	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("libp2p peer address:")
+	for i := 0; i < len(addrs); i++ {
+		fmt.Println("\t", addrs[i])
+	}
+	fmt.Println("───────────────────────────────────────────────────")
+}
+
 func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
 	// Init a libp2p node
 	// ----------------------------------------------------------
@@ -79,7 +100,6 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 }
 
 func SetNodeUp() {
-
 	fmt.Println("Generating identity...")
 	privKey, err := loadPrivateKey()
 	check(err)
@@ -93,6 +113,8 @@ func SetNodeUp() {
 	check(err)
 
 	fmt.Println(dht)
+
+	displayNodeInfo(node)
 
 	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
@@ -115,24 +137,5 @@ func SetNodeUp() {
 	// 	res := <-ch
 	// 	fmt.Println("pinged", addr, "in", res.RTT)
 	// }
-
-	// print node ID
-	fmt.Println("───────────────────────────────────────────────────")
-	fmt.Println("libp2p peer ID:\n\t", node.ID())
-
-	// print the node's PeerInfo in multiaddr format
-	peerInfo := peerstore.AddrInfo{
-		ID:    node.ID(),
-		Addrs: node.Addrs(),
-	}
-	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("libp2p peer address:")
-	for i := 0; i < len(addrs); i++ {
-		fmt.Println("\t", addrs[i])
-	}
-	fmt.Println("───────────────────────────────────────────────────")
 
 }
