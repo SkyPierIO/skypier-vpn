@@ -8,8 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ['amd64', '386' ]
-        os: ['linux', 'windows', 'darwin', 'openbsd']
+        arch: ['amd64', '386', 'arm64' ]
+        os: ['linux', 'windows', 'darwin']
+        exclude:
+          - arch: 386
+            os: darwin
 
     steps:
       - uses: actions/checkout@v4
