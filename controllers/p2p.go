@@ -79,6 +79,7 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 	// especially in corporate networks, so running a node
 	// exclusively with QUIC is usually not an option.
 
+	// TODO add a cli/config option to prevent private IP advertising
 	node, err := libp2p.New(
 		libp2p.ListenAddrStrings(
 			"/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC

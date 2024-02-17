@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/SkyPierIO/skypier-vpn/controllers"
+	"github.com/SkyPierIO/skypier-vpn/utils"
 	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ type Config struct {
 
 func main() {
 
+	utils.InitConfiguration()
 	config := Config{8081, "skypier", "1.0"}
 
 	gin.SetMode(gin.ReleaseMode)
