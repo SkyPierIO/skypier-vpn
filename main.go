@@ -19,7 +19,7 @@ type Config struct {
 
 func main() {
 
-	utils.InitConfiguration()
+	utils.InitConfiguration("./config.json")
 	config := Config{8081, "skypier", "1.0"}
 
 	gin.SetMode(gin.ReleaseMode)
@@ -47,6 +47,7 @@ func main() {
 	api.GET("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
 	})
+	api.GET("/getConfig", utils.GetConfiguration)
 	// api.GET("/init", controllers.SetNodeUp)
 	// api.GET("/streams", controllers.ListStreams)
 	// api.GET("/listeners", controllers.ListListeners)

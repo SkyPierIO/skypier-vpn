@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Config struct {
@@ -25,27 +27,32 @@ func LoadConfiguration(file string) (Config, error) {
 	}
 }
 
+func GetConfiguration(c *gin.Context) {
+	configContent, err := LoadConfiguration("./config.json")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(configContent)
+	c.IndentedJSON(200, configContent)
+}
+
 func checkFileExists(filePath string) bool {
 	_, error := os.Open(filePath) // For read access.
 	return error == nil
-
 }
 
-func InitConfiguration() error {
-
-	isConfigPresent := checkFileExists("./config.json")
-
+func InitConfiguration(file string) error {
+	isConfigPresent := checkFileExists(file)
 	if isConfigPresent {
-		fmt.Println("file exist")
 		return nil
 	} else {
-		fmt.Println("file not exists")
+		fmt.Println("Init configuration")
 		config := Config{"", false}
-		file, err := json.MarshalIndent(config, "", " ")
+		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile("test.json", file, 0644)
+		err = os.WriteFile(file, content, 0664)
 		if err != nil {
 			return err
 		}
