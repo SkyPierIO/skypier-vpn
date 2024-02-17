@@ -99,8 +99,19 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
 	fmt.Println(sEnc)
 
-	// Create private DHT
-	newDHT := dht.NewDHTClient(context.Background(), node, datastore.NewMapDatastore())
+	// Start a DHT, for use in peer discovery. We can't just make a new DHT client
+	// because we want each peer to maintain its own local copy of the DHT, so
+	// that the bootstrapping node of the DHT can go down without inhibitting
+	// future peer discovery.
+	//
+	// Use dht.NewDHTClient if you don't want our DHT to be requested
+	newDHT := dht.NewDHT(context.Background(), node, datastore.NewMapDatastore())
+
+	// Bootstrap the DHT. In the default configuration, this spawns a Background
+	// thread that will refresh the peer table every five minutes.
+	if err = newDHT.Bootstrap(context.Background()); err != nil {
+		panic(err)
+	}
 
 	return node, newDHT, err
 }
