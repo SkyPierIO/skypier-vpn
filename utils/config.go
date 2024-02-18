@@ -2,7 +2,7 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -32,7 +32,7 @@ func GetConfiguration(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(configContent)
+	log.Println(configContent)
 	c.IndentedJSON(200, configContent)
 }
 
@@ -46,7 +46,7 @@ func InitConfiguration(file string) error {
 	if isConfigPresent {
 		return nil
 	} else {
-		fmt.Println("Init configuration")
+		log.Println("Init configuration")
 		config := Config{"", false}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {

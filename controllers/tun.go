@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"log"
+	"net"
 
 	"github.com/songgao/packets/ethernet"
 	"github.com/songgao/water"
@@ -31,17 +32,56 @@ func SetInterfaceUp() {
 
 	var frame ethernet.Frame
 
+	// for {
+	// 	// Read in a packet from the tun device.
+	// 	plen, err := iface.Read(packet)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		continue
+	// 	}
+
+	// 	// Decode the packet's destination address
+	// 	dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
+	// }
+
 	for {
 		frame.Resize(1500) // MTU
-		n, err := iface.Read([]byte(frame))
+		packet := []byte(frame)
+		n, err := iface.Read(packet)
 		if err != nil {
 			log.Fatal(err)
 		}
 		frame = frame[:n]
-		log.Printf("Dst: %s\n", frame.Destination())
-		log.Printf("Src: %s\n", frame.Source())
-		log.Printf("Ethertype: % x\n", frame.Ethertype())
+		log.Printf("\n──────────────── ETHERNET TYPE II ────────────────────")
+		log.Printf("Dst MAC addr: %s\n", frame.Destination())
+		log.Printf("Src MAC addr: %s\n", frame.Source())
+		log.Printf("EtherType: % x\n", frame.Ethertype())
 		log.Printf("Payload: % x\n", frame.Payload())
+		if frame.Ethertype() == ethernet.IPv4 {
+			// 	Example Internet Datagram Header
+			//
+			// 	0                   1                   2                   3
+			// 	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |Version|  IHL  |Type of Service|          Total Length         |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |         Identification        |Flags|      Fragment Offset    |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Time to Live |    Protocol   |         Header Checksum       |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                       Source Address                          |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                    Destination Address                        |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                    Options                    |    Padding    |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+			ipDst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
+			ipSrc := net.IPv4(packet[20], packet[21], packet[22], packet[23]).String()
+			log.Printf("───────────────────── IP packet ─────────────────────")
+			log.Printf("IP dst: %s\n", ipDst)
+			log.Printf("IP src: %s\n", ipSrc)
+		}
 	}
 }
 

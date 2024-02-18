@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"fmt"
+	"log"
 
 	b64 "encoding/base64"
 
@@ -40,8 +40,8 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 
 func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	// print node ID
-	fmt.Println("───────────────────────────────────────────────────")
-	fmt.Println("libp2p peer ID:\n\t", node.ID())
+	log.Println("───────────────────────────────────────────────────")
+	log.Println("libp2p peer ID:\n\t", node.ID())
 
 	// print the node's PeerInfo in multiaddr format
 	peerInfo := peerstore.AddrInfo{
@@ -52,16 +52,16 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("libp2p peer address:")
+	log.Println("libp2p peer address:")
 	for i := 0; i < len(addrs); i++ {
-		fmt.Println("\t", addrs[i])
+		log.Println("\t", addrs[i])
 	}
-	fmt.Println("───────────────────────────────────────────────────")
+	log.Println("───────────────────────────────────────────────────")
 
 	pubKey, err := dht.GetPublicKey(context.Background(), node.ID())
 	check(err)
 
-	fmt.Println("DHT Pub Key Struct : ", pubKey)
+	log.Println("DHT Pub Key Struct : ", pubKey)
 }
 
 func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
@@ -97,7 +97,7 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 	keyBytes, err := crypto.MarshalPrivateKey(node.Peerstore().PrivKey(node.ID()))
 	check(err)
 	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
-	fmt.Println(sEnc)
+	log.Println(sEnc)
 
 	// Start a DHT, for use in peer discovery. We can't just make a new DHT client
 	// because we want each peer to maintain its own local copy of the DHT, so
@@ -117,7 +117,7 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 }
 
 func SetNodeUp() {
-	fmt.Println("Generating identity...")
+	log.Println("Generating identity...")
 	privKey, err := loadPrivateKey()
 	check(err)
 
@@ -145,11 +145,11 @@ func SetNodeUp() {
 	// if err := node.Connect(context.Background(), *peer); err != nil {
 	// 	panic(err)
 	// }
-	// fmt.Println("sending 3 ping messages to", addr)
+	// log.Println("sending 3 ping messages to", addr)
 	// ch := pingService.Ping(context.Background(), peer.ID)
 	// for i := 0; i < 3; i++ {
 	// 	res := <-ch
-	// 	fmt.Println("pinged", addr, "in", res.RTT)
+	// 	log.Println("pinged", addr, "in", res.RTT)
 	// }
 
 }
