@@ -14,7 +14,7 @@ var interfaceName = "skypier0"
 func SetInterfaceUp() {
 
 	config := water.Config{
-		DeviceType: water.TAP,
+		DeviceType: water.TUN,
 	}
 	config.Name = interfaceName
 
@@ -52,7 +52,7 @@ func SetInterfaceUp() {
 			log.Fatal(err)
 		}
 		frame = frame[:n]
-		log.Printf("\n──────────────── ETHERNET TYPE II ────────────────────")
+		log.Printf("\n────────────── ETHERNET TYPE II ──────────────────")
 		log.Printf("Dst MAC addr: %s\n", frame.Destination())
 		log.Printf("Src MAC addr: %s\n", frame.Source())
 		log.Printf("EtherType: % x\n", frame.Ethertype())
@@ -78,7 +78,7 @@ func SetInterfaceUp() {
 
 			ipDst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
 			ipSrc := net.IPv4(packet[20], packet[21], packet[22], packet[23]).String()
-			log.Printf("───────────────────── IP packet ─────────────────────")
+			log.Printf("─────────────────── IP packet ────────────────────")
 			log.Printf("IP dst: %s\n", ipDst)
 			log.Printf("IP src: %s\n", ipSrc)
 		}

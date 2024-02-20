@@ -28,6 +28,7 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 	if err != nil {
 		privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
+			log.Printf("error generating new key...")
 			return nil, err
 		}
 		return privKey, nil

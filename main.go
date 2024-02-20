@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/SkyPierIO/skypier-vpn/controllers"
+	"github.com/SkyPierIO/skypier-vpn/ui"
 	"github.com/SkyPierIO/skypier-vpn/utils"
 	"github.com/gin-contrib/cors"
 
@@ -33,6 +35,10 @@ func main() {
 
 	go controllers.SetNodeUp()
 	go controllers.SetInterfaceUp()
+	go ui.LaunchUI()
+	var webUI = "http://localhost:8082"
+	ui.OpenWebBrowser(webUI)
+	log.Printf("🌎 Web UI: %s\n", webUI)
 
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
@@ -60,4 +66,5 @@ func main() {
 
 	// Run with HTTP
 	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(config.Port), 10))
+
 }
