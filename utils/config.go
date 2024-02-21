@@ -8,6 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// InnerConfig Struct is not loaded from an external configuration file
+// This is the internal static config
+type InnerConfig struct {
+	Port            int
+	Protocol        string
+	ProtocolVersion string
+}
+
+// Config loaded from the configuration file
 type Config struct {
 	Debug                     bool   `json:"debug"`
 	PrivateKey                string `json:"privateKey"`
@@ -28,6 +37,16 @@ func LoadConfiguration(file string) (Config, error) {
 	}
 }
 
+// ListAccounts godoc
+// @Summary      Get the configuration
+// @Description  Get the content of the configuration file
+// @Tags         config
+// @Produce      json
+// @Success      200
+// @Failure      400
+// @Failure      404
+// @Failure      500
+// @Router       /getConfig [get]
 func GetConfiguration(c *gin.Context) {
 	configContent, err := LoadConfiguration("./config.json")
 	if err != nil {
@@ -36,6 +55,9 @@ func GetConfiguration(c *gin.Context) {
 	log.Println(configContent)
 	c.IndentedJSON(200, configContent)
 }
+
+// TODO set config
+// func SetConfiguration(c *gin.Context) {}
 
 func checkFileExists(filePath string) bool {
 	_, error := os.Open(filePath) // For read access.

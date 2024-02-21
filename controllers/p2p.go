@@ -36,7 +36,7 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	// print node ID
 	log.Println("───────────────────────────────────────────────────")
-	log.Println("libp2p peer ID:\n\t", node.ID())
+	log.Println("libp2p peer ID: ", node.ID())
 
 	// print the node's PeerInfo in multiaddr format
 	peerInfo := peerstore.AddrInfo{
@@ -92,7 +92,9 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 	keyBytes, err := crypto.MarshalPrivateKey(node.Peerstore().PrivKey(node.ID()))
 	utils.Check(err)
 	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
-	log.Println(sEnc)
+	if utils.IsDebugEnabled() {
+		log.Println(sEnc)
+	}
 
 	// Start a DHT, for use in peer discovery. We can't just make a new DHT client
 	// because we want each peer to maintain its own local copy of the DHT, so
@@ -117,7 +119,6 @@ func SetNodeUp() {
 	utils.Check(err)
 
 	// Find available port for both TCP and UDP
-
 	tcpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
 	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
 

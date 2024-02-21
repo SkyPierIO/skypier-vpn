@@ -12,7 +12,7 @@ func Greetings(message string) {
 	ascii := figlet4go.NewAsciiRender()
 	options := figlet4go.NewRenderOptions()
 	options.FontColor = []figlet4go.Color{figlet4go.ColorCyan}
-	renderStr, err := ascii.RenderOpts("Skypier", options)
+	renderStr, err := ascii.RenderOpts(message, options)
 
 	fmt.Print(renderStr)
 	Check(err)
