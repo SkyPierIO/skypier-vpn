@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	Debug                     bool   `json:"debug"`
 	PrivateKey                string `json:"privateKey"`
 	AdvertisePrivateAddresses bool   `json:"adverstisePrivateAddresses"`
 }
@@ -17,7 +18,7 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{"", false}
+		config = Config{true, "", false}
 		return config, err
 	} else {
 		defer configFile.Close()
@@ -47,7 +48,7 @@ func InitConfiguration(file string) error {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{"", false}
+		config := Config{true, "", false}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err

@@ -17,12 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func loadPrivateKey() (crypto.PrivKey, error) {
 	config, err := utils.LoadConfiguration("./config")
 	if err != nil {
@@ -34,7 +28,7 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 		return privKey, nil
 	} else {
 		privKey, err := crypto.UnmarshalPrivateKey([]byte(config.PrivateKey)) // TODO read PK from cfg
-		check(err)
+		utils.Check(err)
 		return privKey, nil
 	}
 }
@@ -60,7 +54,7 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	log.Println("───────────────────────────────────────────────────")
 
 	pubKey, err := dht.GetPublicKey(context.Background(), node.ID())
-	check(err)
+	utils.Check(err)
 
 	log.Println("DHT Pub Key Struct : ", pubKey)
 }
@@ -93,10 +87,10 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
 	)
-	check(err)
+	utils.Check(err)
 
 	keyBytes, err := crypto.MarshalPrivateKey(node.Peerstore().PrivKey(node.ID()))
-	check(err)
+	utils.Check(err)
 	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
 	log.Println(sEnc)
 
@@ -120,7 +114,7 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 func SetNodeUp() {
 	log.Println("Generating identity...")
 	privKey, err := loadPrivateKey()
-	check(err)
+	utils.Check(err)
 
 	// Find available port for both TCP and UDP
 
@@ -128,7 +122,7 @@ func SetNodeUp() {
 	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
 
 	node, dht, err := BootstrapNode(privKey, tcpPort, udpPort)
-	check(err)
+	utils.Check(err)
 	displayNodeInfo(node, dht)
 
 	// configure our own ping protocol

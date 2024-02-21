@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 
@@ -9,44 +8,24 @@ import (
 	"github.com/SkyPierIO/skypier-vpn/ui"
 	"github.com/SkyPierIO/skypier-vpn/utils"
 	"github.com/gin-contrib/cors"
-	"github.com/mbndr/figlet4go"
 
 	"github.com/gin-gonic/gin"
 )
 
-type Config struct {
+type InnerConfig struct {
 	Port            int
 	Protocol        string
 	ProtocolVersion string
 }
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func main() {
 
 	utils.InitConfiguration("./config.json")
-	config := Config{8081, "skypier", "1.0"}
+	config := InnerConfig{8081, "skypier", "1.0"}
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.Use(cors.Default())
-
-	fmt.Println("───────────────────────────────────────────────────")
-	ascii := figlet4go.NewAsciiRender()
-	options := figlet4go.NewRenderOptions()
-	options.FontColor = []figlet4go.Color{
-		// Colors can be given by default ansi color codes...
-		figlet4go.ColorCyan,
-	}
-	renderStr, err := ascii.RenderOpts("Skypier", options)
-
-	fmt.Print(renderStr)
-	check(err)
-	fmt.Println("\n───────────────────────────────────────────────────")
 
 	go controllers.SetNodeUp()
 	go controllers.SetInterfaceUp()
