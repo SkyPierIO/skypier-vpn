@@ -17,7 +17,8 @@ sudo ./skypier-vpn
 - [x] Init TUN interface on Linux
 - [ ] Init TUN interface on Darwin
 - [ ] Init TUN interface on Windows
-- [ ] Launch web UI at launch
+- [x] Launch web UI at launch
+- [ ] Add some dynamic frontend build using Github Action
 - [x] Enable QUIC protocol 
 - [ ] Ensure QUIC protocol first (need more test)
 - [ ] Check remote peer is reachable
