@@ -37,7 +37,11 @@ func main() {
 	// CONFIGURATION
 	utils.Greetings("Skypier")
 	utils.InitConfiguration("./config.json")
-	innerConfig := utils.InnerConfig{8081, "skypier", "1.0"}
+	innerConfig := utils.InnerConfig{
+		Port:            8081,
+		Protocol:        "skypier",
+		ProtocolVersion: "1.0",
+	}
 
 	go controllers.SetNodeUp()
 	go controllers.SetInterfaceUp()
