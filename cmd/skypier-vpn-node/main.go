@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strconv"
 
 	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
@@ -9,7 +8,6 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/controllers"
-	"github.com/SkyPierIO/skypier-vpn/pkg/ui"
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-contrib/cors"
 
@@ -37,6 +35,8 @@ func main() {
 	// CONFIGURATION
 	utils.Greetings("Skypier")
 	utils.InitConfiguration("./config.json")
+	config, err := utils.LoadConfiguration("./config.json")
+	utils.Check(err)
 	innerConfig := utils.InnerConfig{
 		Port:            8081,
 		Protocol:        "skypier",
@@ -45,12 +45,7 @@ func main() {
 
 	go controllers.SetNodeUp()
 	go controllers.SetInterfaceUp()
-	go ui.LaunchUI()
-	var webUI = "http://localhost:8082/"
-	ui.OpenWebBrowser(webUI)
-	log.Printf("🌎 Web UI: %s\n", webUI)
 
-	docs.SwaggerInfo.BasePath = "/api/v0"
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -59,7 +54,10 @@ func main() {
 	router.GET("/", func(c *gin.Context) {
 		c.String(200, "OK")
 	})
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	if config.SwaggerEnabled {
+		docs.SwaggerInfo.BasePath = "/api/v0"
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	}
 
 	api := router.Group("/api/v0")
 	api.GET("/", func(c *gin.Context) {

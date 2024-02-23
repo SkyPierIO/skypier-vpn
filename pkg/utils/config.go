@@ -21,13 +21,14 @@ type Config struct {
 	Debug                     bool   `json:"debug"`
 	PrivateKey                string `json:"privateKey"`
 	AdvertisePrivateAddresses bool   `json:"adverstisePrivateAddresses"`
+	SwaggerEnabled            bool   `json:"swaggerEnabled"`
 }
 
 func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{true, "", false}
+		config = Config{true, "", false, false}
 		return config, err
 	} else {
 		defer configFile.Close()
@@ -70,7 +71,7 @@ func InitConfiguration(file string) error {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{true, "", false}
+		config := Config{true, "", false, false}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err
