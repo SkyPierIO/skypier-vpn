@@ -22,7 +22,7 @@ jobs:
       run: go mod verify
 
     - name: Build
-      run: go build -v -ldflags "-s -w" -trimpath
+      run: go build -v -ldflags "-s -w" -trimpath -buildvcs=false -o skypier-vpn-ui cmd/skypier-vpn-node/main.go
 
     - name: Run go vet
       run: go vet ./...
