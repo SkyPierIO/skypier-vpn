@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"log"
+	"time"
 
 	b64 "encoding/base64"
 
@@ -13,6 +14,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/routing"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
+	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
@@ -63,6 +68,20 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 	// Init a libp2p node
 	// ----------------------------------------------------------
 
+	// The context governs the lifetime of the libp2p node.
+	// Cancelling it will stop the host.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Connection manager - Load Balancer
+	connmgr, err := connmgr.NewConnManager(
+		100, // Lowwater
+		400, // HighWater,
+		connmgr.WithGracePeriod(time.Minute),
+	)
+
+	var idht *dht.IpfsDHT
+
 	// QUIC is an UDP-based transport protocol.
 	// QUIC connections are always encrypted (using TLS 1.3) and
 	// provides native stream multiplexing.
@@ -76,18 +95,37 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 
 	// TODO add a cli/config option to prevent private IP advertising
 	node, err := libp2p.New(
+		// Multiple listen addresses
 		libp2p.ListenAddrStrings(
 			"/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC
 			"/ip4/0.0.0.0/udp/"+udpPort+"/quic-v1", // IPv4 QUIC
 			"/ip6/::/tcp/"+tcpPort,                 // IPv6 TCP
 			"/ip4/0.0.0.0/tcp/"+tcpPort,            // IPv4 TCP
 		),
+		// Use the keypair we generated / from config file
 		libp2p.Identity(pk),
-		libp2p.DefaultSecurity,
+		// libp2p.DefaultSecurity,
+		// support TLS connections
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+		// support noise connections
+		libp2p.Security(noise.ID, noise.New),
+		// support QUIC transports
 		libp2p.Transport(quic.NewTransport),
+		// support default TCP transport
 		libp2p.Transport(tcp.NewTCPTransport),
+		// Let's prevent our peer from having too many
+		// connections by attaching a connection manager.
+		libp2p.ConnectionManager(connmgr),
+		// Attempt to open ports using uPNP for NATed hosts.
+		libp2p.NATPortMap(),
+		// Let this host use the DHT to find other hosts
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			idht, err = dht.New(ctx, h)
+			return idht, err
+		}),
 	)
 	utils.Check(err)
+	defer node.Close()
 
 	keyBytes, err := crypto.MarshalPrivateKey(node.Peerstore().PrivKey(node.ID()))
 	utils.Check(err)
@@ -102,12 +140,23 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 	// future peer discovery.
 	//
 	// Use dht.NewDHTClient if you don't want our DHT to be requested
-	newDHT := dht.NewDHT(context.Background(), node, datastore.NewMapDatastore())
+	newDHT := dht.NewDHT(ctx, node, datastore.NewMapDatastore())
 
 	// Bootstrap the DHT. In the default configuration, this spawns a Background
 	// thread that will refresh the peer table every five minutes.
-	if err = newDHT.Bootstrap(context.Background()); err != nil {
+	if err = newDHT.Bootstrap(ctx); err != nil {
 		panic(err)
+	}
+
+	// This connects to public bootstrappers
+	for _, addr := range dht.DefaultBootstrapPeers {
+		pi, _ := peerstore.AddrInfoFromP2pAddr(addr)
+		// We ignore errors as some bootstrap peers may be down
+		// and that is fine.
+		err := node.Connect(ctx, *pi)
+		utils.Check(err)
+		log.Println("Connected to bootstrap peer: ", pi.ID)
+
 	}
 
 	return node, newDHT, err
@@ -138,11 +187,11 @@ func SetNodeUp() {
 	// if err != nil {
 	// 	panic(err)
 	// }
-	// if err := node.Connect(context.Background(), *peer); err != nil {
+	// if err := node.Connect(ctx, *peer); err != nil {
 	// 	panic(err)
 	// }
 	// log.Println("sending 3 ping messages to", addr)
-	// ch := pingService.Ping(context.Background(), peer.ID)
+	// ch := pingService.Ping(ctx, peer.ID)
 	// for i := 0; i < 3; i++ {
 	// 	res := <-ch
 	// 	log.Println("pinged", addr, "in", res.RTT)
