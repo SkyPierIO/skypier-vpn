@@ -7,8 +7,8 @@ import (
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	"github.com/SkyPierIO/skypier-vpn/pkg/controllers"
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
+	"github.com/SkyPierIO/skypier-vpn/pkg/vpn"
 	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
@@ -43,8 +43,8 @@ func main() {
 		ProtocolVersion: "1.0",
 	}
 
-	go controllers.SetNodeUp()
-	go controllers.SetInterfaceUp()
+	go vpn.SetNodeUp()
+	go vpn.SetInterfaceUp()
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
