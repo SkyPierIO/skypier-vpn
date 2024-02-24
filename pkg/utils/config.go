@@ -28,7 +28,7 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{true, "", false, false}
+		config = Config{false, "", false, false}
 		return config, err
 	} else {
 		defer configFile.Close()

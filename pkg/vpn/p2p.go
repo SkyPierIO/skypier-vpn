@@ -125,7 +125,7 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 		}),
 	)
 	utils.Check(err)
-	defer node.Close()
+	// defer node.Close()
 
 	keyBytes, err := crypto.MarshalPrivateKey(node.Peerstore().PrivKey(node.ID()))
 	utils.Check(err)
