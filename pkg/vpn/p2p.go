@@ -22,18 +22,35 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
+// Returns the new RSA 2048 key in crypto.Privkey struct format
+// and in the base64 encoded format (for config file)
+func generateNewRSAPrivateKey() (crypto.PrivKey, string, error) {
+	privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
+	utils.Check(err)
+	marshalledPrivKey, err := crypto.MarshalPrivateKey(privKey)
+	utils.Check(err)
+	return privKey, crypto.ConfigEncodeKey(marshalledPrivKey), nil
+}
+
 func loadPrivateKey() (crypto.PrivKey, error) {
-	config, err := utils.LoadConfiguration("./config")
+	config, err := utils.LoadConfiguration("./config.json")
 	if err != nil {
-		privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
-		if err != nil {
-			log.Printf("error generating new key...")
-			return nil, err
-		}
-		return privKey, nil
-	} else {
-		privKey, err := crypto.UnmarshalPrivateKey([]byte(config.PrivateKey)) // TODO read PK from cfg
+		newPk, newPkBase64, err := generateNewRSAPrivateKey()
 		utils.Check(err)
+		config.PrivateKey = newPkBase64
+		utils.SaveConfig(config)
+		return newPk, nil
+	} else {
+		decodedPrivatKey, err := crypto.ConfigDecodeKey(config.PrivateKey)
+		utils.Check(err)
+		privKey, err := crypto.UnmarshalPrivateKey(decodedPrivatKey)
+		if err != nil {
+			_, newPkBase64, err := generateNewRSAPrivateKey()
+			utils.Check(err)
+			config.PrivateKey = newPkBase64
+			utils.SaveConfig(config)
+			loadPrivateKey()
+		}
 		return privKey, nil
 	}
 }

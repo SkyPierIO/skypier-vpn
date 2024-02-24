@@ -25,6 +25,10 @@ type Config struct {
 }
 
 func LoadConfiguration(file string) (Config, error) {
+
+	err := InitConfiguration(file)
+	Check(err)
+
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
@@ -66,8 +70,7 @@ func checkFileExists(filePath string) bool {
 }
 
 func InitConfiguration(file string) error {
-	isConfigPresent := checkFileExists(file)
-	if isConfigPresent {
+	if checkFileExists(file) {
 		return nil
 	} else {
 		log.Println("Init configuration")
@@ -82,4 +85,12 @@ func InitConfiguration(file string) error {
 		}
 		return nil
 	}
+}
+
+func SaveConfig(config Config) error {
+	content, err := json.MarshalIndent(config, "", "    ")
+	Check(err)
+	err = os.WriteFile("./config.json", content, 0664)
+	Check(err)
+	return nil
 }

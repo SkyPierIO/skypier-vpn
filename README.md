@@ -4,9 +4,9 @@ decentralized VPN POC
 
 ## Build and Run (on Linux)
 
-```
-go build . 
-sudo ./skypier-vpn
+```bash
+go build -o build/skypier-vpn-node cmd/skypier-vpn-node/main.go
+sudo ./build/skypier-vpn-node
 ```
 
 ## TODO list
