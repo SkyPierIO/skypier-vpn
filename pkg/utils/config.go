@@ -20,7 +20,7 @@ type InnerConfig struct {
 type Config struct {
 	Debug                     bool   `json:"debug"`
 	PrivateKey                string `json:"privateKey"`
-	AdvertisePrivateAddresses bool   `json:"adverstisePrivateAddresses"`
+	AdvertisePrivateAddresses bool   `json:"advertisePrivateAddresses"`
 	SwaggerEnabled            bool   `json:"swaggerEnabled"`
 }
 

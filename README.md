@@ -17,10 +17,11 @@ sudo ./build/skypier-vpn-node
 - [x] Init TUN interface on Linux
 - [ ] Init TUN interface on Darwin
 - [ ] Init TUN interface on Windows
+- [x] If "privateKey" is given in the config, bootsrap the node using this private key
 - [x] Launch web UI at launch
-- [ ] Add some dynamic frontend build using Github Action
 - [x] Enable QUIC protocol 
+- [ ] Add some dynamic frontend build using Github Action
 - [ ] Ensure QUIC protocol first (need more test)
 - [ ] Check remote peer is reachable
 - [ ] Mount tunnel with remote address corresponding to this peer ID (check the DHT)
-- [ ] If "privateKey" is given in the config, bootsrap the node using this private key
+- [ ] Config validated with a JsonSchema 
