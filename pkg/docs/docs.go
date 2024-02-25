@@ -10,7 +10,7 @@ const docTemplate = `{
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
         "contact": {
-            "name": "Skypier info",
+            "name": "Skypier",
             "url": "http://skypier.io/",
             "email": "info@skypier.io"
         },
@@ -48,6 +48,32 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/id": {
+            "get": {
+                "description": "Get the local libp2p peer ID (this is the identity of your node on the Skypier Network)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "P2P"
+                ],
+                "summary": "Get the local peer ID",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
         }
     },
     "externalDocs": {
@@ -58,12 +84,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "0.0.1",
 	Host:             "localhost:8081",
 	BasePath:         "/api/v0",
 	Schemes:          []string{},
-	Title:            "Swagger Skypier API",
-	Description:      "This is a Skypier VPN REST API.",
+	Title:            "Skypier",
+	Description:      "Skypier - Embark securely on web3",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -1,10 +1,10 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is a Skypier VPN REST API.",
-        "title": "Swagger Skypier API",
+        "description": "Skypier - Embark securely on web3",
+        "title": "Skypier",
         "contact": {
-            "name": "Skypier info",
+            "name": "Skypier",
             "url": "http://skypier.io/",
             "email": "info@skypier.io"
         },
@@ -12,7 +12,7 @@
             "name": "MIT",
             "url": "https://choosealicense.com/licenses/mit/"
         },
-        "version": "1.0"
+        "version": "0.0.1"
     },
     "host": "localhost:8081",
     "basePath": "/api/v0",
@@ -27,6 +27,32 @@
                     "config"
                 ],
                 "summary": "Get the configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/id": {
+            "get": {
+                "description": "Get the local libp2p peer ID (this is the identity of your node on the Skypier Network)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "P2P"
+                ],
+                "summary": "Get the local peer ID",
                 "responses": {
                     "200": {
                         "description": "OK"

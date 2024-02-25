@@ -8,6 +8,7 @@ import (
 	b64 "encoding/base64"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
+	"github.com/gin-gonic/gin"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -53,6 +54,16 @@ func loadPrivateKey() (crypto.PrivKey, error) {
 		}
 		return privKey, nil
 	}
+}
+
+// GetPeerId     godoc
+// @Summary      Get the local peer ID
+// @Description  Get the local libp2p peer ID (this is the identity of your node on the Skypier Network)
+// @Tags         P2P
+// @Produce      json
+// @Router       /id [get]
+func GetPeerId(c *gin.Context) {
+	c.IndentedJSON(200, "Hello")
 }
 
 func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {

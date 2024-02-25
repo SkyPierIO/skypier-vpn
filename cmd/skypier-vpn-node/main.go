@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"strconv"
 
 	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
@@ -14,11 +15,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// @title           Swagger Skypier API
-// @version         1.0
-// @description     This is a Skypier VPN REST API.
+// @title           Skypier
+// @version         0.0.1
+// @description     Skypier - Embark securely on web3
 
-// @contact.name   Skypier info
+// @contact.name   Skypier
 // @contact.url    http://skypier.io/
 // @contact.email  info@skypier.io
 
@@ -57,6 +58,7 @@ func main() {
 	if config.SwaggerEnabled {
 		docs.SwaggerInfo.BasePath = "/api/v0"
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+		log.Println("Swagger UI available at http://127.0.0.1:8081/swagger/index.html")
 	}
 
 	api := router.Group("/api/v0")
@@ -67,6 +69,7 @@ func main() {
 		c.String(200, "pong")
 	})
 	api.GET("/getConfig", utils.GetConfiguration)
+	api.GET("/id", vpn.GetPeerId)
 
 	// Run with HTTP
 	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
