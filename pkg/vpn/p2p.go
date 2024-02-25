@@ -23,47 +23,14 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
-// Returns the new RSA 2048 key in crypto.Privkey struct format
-// and in the base64 encoded format (for config file)
-func generateNewRSAPrivateKey() (crypto.PrivKey, string, error) {
-	privKey, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
-	utils.Check(err)
-	marshalledPrivKey, err := crypto.MarshalPrivateKey(privKey)
-	utils.Check(err)
-	return privKey, crypto.ConfigEncodeKey(marshalledPrivKey), nil
-}
-
-func loadPrivateKey() (crypto.PrivKey, error) {
-	config, err := utils.LoadConfiguration("./config.json")
-	if err != nil {
-		newPk, newPkBase64, err := generateNewRSAPrivateKey()
-		utils.Check(err)
-		config.PrivateKey = newPkBase64
-		utils.SaveConfig(config)
-		return newPk, nil
-	} else {
-		decodedPrivatKey, err := crypto.ConfigDecodeKey(config.PrivateKey)
-		utils.Check(err)
-		privKey, err := crypto.UnmarshalPrivateKey(decodedPrivatKey)
-		if err != nil {
-			_, newPkBase64, err := generateNewRSAPrivateKey()
-			utils.Check(err)
-			config.PrivateKey = newPkBase64
-			utils.SaveConfig(config)
-			loadPrivateKey()
-		}
-		return privKey, nil
-	}
-}
-
 // GetPeerId     godoc
 // @Summary      Get the local peer ID
 // @Description  Get the local libp2p peer ID (this is the identity of your node on the Skypier Network)
-// @Tags         P2P
+// @Tags         VPN
 // @Produce      json
 // @Router       /id [get]
 func GetPeerId(c *gin.Context) {
-	c.IndentedJSON(200, "Hello")
+	c.IndentedJSON(200, "TODO")
 }
 
 func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {

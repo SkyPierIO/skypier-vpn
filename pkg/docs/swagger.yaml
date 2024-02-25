@@ -38,16 +38,8 @@ paths:
         on the Skypier Network)
       produces:
       - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
+      responses: {}
       summary: Get the local peer ID
       tags:
-      - P2P
+      - VPN
 swagger: "2.0"

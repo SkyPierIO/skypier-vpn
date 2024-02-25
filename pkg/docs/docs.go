@@ -56,23 +56,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "P2P"
+                    "VPN"
                 ],
                 "summary": "Get the local peer ID",
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
+                "responses": {}
             }
         }
     },
