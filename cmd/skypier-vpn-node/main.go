@@ -44,8 +44,8 @@ func main() {
 		ProtocolVersion: "1.0",
 	}
 
-	go vpn.SetNodeUp()
 	go vpn.SetInterfaceUp()
+	go vpn.SetNodeUp(innerConfig)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()

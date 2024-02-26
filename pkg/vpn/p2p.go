@@ -6,6 +6,7 @@ import (
 	"time"
 
 	b64 "encoding/base64"
+	"encoding/binary"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,9 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
@@ -59,7 +62,7 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	log.Println("DHT Pub Key Struct : ", pubKey)
 }
 
-func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
+func BootstrapNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
 	// Init a libp2p node
 	// ----------------------------------------------------------
 
@@ -99,6 +102,8 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 		),
 		// Use the keypair we generated / from config file
 		libp2p.Identity(pk),
+		// Enable stream connection multiplexers
+		libp2p.DefaultMuxers,
 		// libp2p.DefaultSecurity,
 		// support TLS connections
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
@@ -118,6 +123,7 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 			idht, err = dht.New(ctx, h)
 			return idht, err
 		}),
+		libp2p.FallbackDefaults,
 	)
 	utils.Check(err)
 	// defer node.Close()
@@ -154,19 +160,22 @@ func BootstrapNode(pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host
 
 	}
 
+	// Set the Skypier protocol handler on the Host's Mux
+	node.SetStreamHandler(protocol.ID(innerConfig.Protocol), streamHandler)
+
 	return node, newDHT, err
 }
 
-func SetNodeUp() {
+func SetNodeUp(config utils.InnerConfig) {
 	log.Println("Generating identity...")
 	privKey, err := loadPrivateKey()
 	utils.Check(err)
 
 	// Find available port for both TCP and UDP
-	tcpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
-	udpPort := utils.GetFirstAvailableTCPPort(3000, 3999)
+	tcpPort := utils.GetFirstAvailableTCPPort(4001, 4999)
+	udpPort := utils.GetFirstAvailableTCPPort(4001, 4999)
 
-	node, dht, err := BootstrapNode(privKey, tcpPort, udpPort)
+	node, dht, err := BootstrapNode(config, privKey, tcpPort, udpPort)
 	utils.Check(err)
 	displayNodeInfo(node, dht)
 
@@ -192,4 +201,39 @@ func SetNodeUp() {
 	// 	log.Println("pinged", addr, "in", res.RTT)
 	// }
 
+}
+
+var RevLookup map[string]string
+
+func streamHandler(stream network.Stream) {
+	// If the remote node ID isn't in the list of known nodes don't respond.
+	if _, ok := RevLookup[stream.Conn().RemotePeer().ShortString()]; !ok {
+		stream.Reset()
+		return
+	}
+	var packet = make([]byte, 1500)
+	var packetSize = make([]byte, 2)
+	for {
+		// Read the incoming packet's size as a binary value.
+		_, err := stream.Read(packetSize)
+		if err != nil {
+			stream.Close()
+			return
+		}
+
+		// Decode the incoming packet's size from binary.
+		size := binary.LittleEndian.Uint16(packetSize)
+
+		// Read in the packet until completion.
+		var plen uint16 = 0
+		for plen < size {
+			tmp, err := stream.Read(packet[plen:size])
+			plen += uint16(tmp)
+			if err != nil {
+				stream.Close()
+				return
+			}
+		}
+		// tun.Iface.Write(packet[:size])
+	}
 }
