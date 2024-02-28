@@ -31,23 +31,23 @@ func OpenWebBrowser(url string) {
 }
 
 var (
-	//go:embed all:web/build
+	//go:embed all:web/dist
 	web embed.FS
 )
 
 func LaunchUI() {
-	build, err := fs.Sub(web, "web/build")
+	dist, err := fs.Sub(web, "web/dist")
 	if err != nil {
 		panic(err)
 	}
 
 	http.Handle(
-		"/", http.FileServer(http.FS(build)),
+		"/", http.FileServer(http.FS(dist)),
 	)
 	port := "8082"
 
-	go func() {
-		log.Fatal(http.ListenAndServe("127.0.0.1:"+port, nil))
-	}()
-
+	// go func() {
+	// 	log.Fatal(http.ListenAndServe("127.0.0.1:"+port, nil))
+	// }()
+	http.ListenAndServe("127.0.0.1:"+port, nil)
 }

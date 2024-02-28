@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	go ui.LaunchUI()
-	var webUI = "http://localhost:8081/"
-	ui.OpenWebBrowser(webUI)
+	var webUI = "http://localhost:8082/"
 	log.Printf("🌎 Web UI: %s\n", webUI)
+	go ui.OpenWebBrowser(webUI)
+	ui.LaunchUI()
 }
