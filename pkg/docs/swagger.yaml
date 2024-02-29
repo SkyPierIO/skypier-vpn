@@ -15,6 +15,17 @@ info:
   title: Skypier
   version: 0.0.1
 paths:
+  /:
+    get:
+      description: Default root API message
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Default root API message
+      tags:
+      - VPN
   /getConfig:
     get:
       description: Get the content of the configuration file
@@ -40,6 +51,17 @@ paths:
       - application/json
       responses: {}
       summary: Get the local peer ID
+      tags:
+      - VPN
+  /ping:
+    get:
+      description: Ping the node locally from the UI
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Ping the node locally from the UI
       tags:
       - VPN
 swagger: "2.0"

@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"strconv"
 
 	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
@@ -58,25 +57,19 @@ func main() {
 	// Serve frontend static files
 	router.Use(static.Serve("/", static.LocalFile("./pkg/ui/web/dist", true)))
 
+	// API Router
 	api := router.Group("/api/v0")
+	api.GET("/", utils.Ok)
+	api.GET("/ping", utils.Ping)
+	api.GET("/getConfig", utils.GetConfiguration)
+	api.GET("/id", vpn.GetPeerId)
+
+	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {
 		docs.SwaggerInfo.BasePath = "/api/v0"
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 		log.Println("Swagger UI available at http://127.0.0.1:8081/swagger/index.html")
 	}
-
-	api.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "OK",
-		})
-	})
-	api.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-		})
-	})
-	api.GET("/getConfig", utils.GetConfiguration)
-	api.GET("/id", vpn.GetPeerId)
 
 	// Run with HTTP
 	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))

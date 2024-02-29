@@ -23,6 +23,23 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/": {
+            "get": {
+                "description": "Default root API message",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Default root API message",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/getConfig": {
             "get": {
                 "description": "Get the content of the configuration file",
@@ -60,6 +77,23 @@ const docTemplate = `{
                 ],
                 "summary": "Get the local peer ID",
                 "responses": {}
+            }
+        },
+        "/ping": {
+            "get": {
+                "description": "Ping the node locally from the UI",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Ping the node locally from the UI",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
             }
         }
     },
