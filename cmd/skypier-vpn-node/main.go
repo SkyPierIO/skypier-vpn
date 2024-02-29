@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"strconv"
 
 	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
@@ -10,8 +11,8 @@ import (
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/SkyPierIO/skypier-vpn/pkg/vpn"
-	"github.com/gin-contrib/cors"
 
+	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
@@ -49,24 +50,30 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	router.Use(cors.Default())
+	// router.Use(cors.Default())
+
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
-	router.GET("/", func(c *gin.Context) {
-		c.String(200, "OK")
-	})
+
+	// Serve frontend static files
+	router.Use(static.Serve("/", static.LocalFile("./pkg/ui/web/dist", true)))
+
+	api := router.Group("/api/v0")
 	if config.SwaggerEnabled {
 		docs.SwaggerInfo.BasePath = "/api/v0"
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 		log.Println("Swagger UI available at http://127.0.0.1:8081/swagger/index.html")
 	}
 
-	api := router.Group("/api/v0")
 	api.GET("/", func(c *gin.Context) {
-		c.String(200, "OK")
+		c.JSON(http.StatusOK, gin.H{
+			"message": "OK",
+		})
 	})
 	api.GET("/ping", func(c *gin.Context) {
-		c.String(200, "pong")
+		c.JSON(http.StatusOK, gin.H{
+			"message": "pong",
+		})
 	})
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/id", vpn.GetPeerId)
