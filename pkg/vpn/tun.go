@@ -14,6 +14,8 @@ var interfaceName = "skypier0"
 
 func SetInterfaceUp() {
 
+	log.Println("Set TUN interface up")
+
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
@@ -24,6 +26,8 @@ func SetInterfaceUp() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("New interface OK")
 
 	// Configure the network interface
 	pierIface, _ := netlink.LinkByName(interfaceName)

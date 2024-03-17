@@ -54,8 +54,11 @@ func main() {
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
 
-	// Serve frontend static files
 	router.Use(static.Serve("/", static.LocalFile("./pkg/ui/web/dist", true)))
+
+	// Serve frontend static files
+	webui := router.Group("/webui")
+	webui.GET("/", static.Serve("/", static.LocalFile("./pkg/ui/web/dist", true)))
 
 	// API Router
 	api := router.Group("/api/v0")
