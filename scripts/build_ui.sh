@@ -3,7 +3,8 @@
 set -e
 
 echo -e "\n[+]\tUpdate React app Git submodule..."
-git submodule update --init --recursive       
+# git submodule update --init --recursive      
+git submodule update --remote      
 
 echo -e "\n[+]\tReact app build..."
 

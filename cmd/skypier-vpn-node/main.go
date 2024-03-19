@@ -49,16 +49,26 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+
+	router.SetTrustedProxies(nil)
 	// router.Use(cors.Default())
 
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
 
-	router.Use(static.Serve("/", static.LocalFile("./pkg/ui/web/dist", true)))
-
-	// Serve frontend static files
-	webui := router.Group("/webui")
-	webui.GET("/", static.Serve("/", static.LocalFile("./pkg/ui/web/dist", true)))
+	// UI routes
+	localFile := "./pkg/ui/web/dist"
+	fs := static.LocalFile(localFile, false)
+	router.Use(static.Serve("/", fs))
+	router.Use(static.Serve("/Explore_peers/", fs))
+	router.Use(static.Serve("/Dashboard/", fs))
+	router.Use(static.Serve("/Saved_peers/", fs))
+	router.Use(static.Serve("/Host_a_node/", fs))
+	router.Use(static.Serve("/Settings/", fs))
+	router.Use(static.Serve("/My_subscription/", fs))
+	router.NoRoute(func(c *gin.Context) {
+		c.File(localFile)
+	})
 
 	// API Router
 	api := router.Group("/api/v0")
