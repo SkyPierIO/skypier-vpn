@@ -69,6 +69,7 @@ func main() {
 	router.NoRoute(func(c *gin.Context) {
 		c.File(localFile)
 	})
+	log.Println("VPN UI available at http://127.0.0.1:8081/")
 
 	// API Router
 	api := router.Group("/api/v0")

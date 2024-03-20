@@ -2,31 +2,17 @@ package ui
 
 import (
 	"embed"
-	"fmt"
 	"io/fs"
-	"log"
 	"net/http"
-	"os/exec"
-	"runtime"
+
+	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
+	"github.com/pkg/browser"
 )
 
 func OpenWebBrowser(url string) {
 
-	var err error
-
-	switch runtime.GOOS {
-	case "linux":
-		err = exec.Command("xdg-open", url).Start()
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	case "darwin":
-		err = exec.Command("open", url).Start()
-	default:
-		err = fmt.Errorf("cannot open link in default browser: unsupported platform")
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
+	err := browser.OpenURL(url)
+	utils.Check(err)
 
 }
 
