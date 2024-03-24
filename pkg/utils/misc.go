@@ -21,6 +21,22 @@ func IsDebugEnabled() bool {
 	}
 }
 
+// Nickname			 godoc
+// @Summary      Get the node nickname
+// @Description  Get the node nickname
+// @Tags         VPN
+// @Produce      json
+// @Success      200
+// @Router       /nickname [get]
+func Nickname(c *gin.Context) {
+	config, err := LoadConfiguration("./config.json")
+	if err != nil {
+		panic(err)
+	} else {
+		c.IndentedJSON(200, config.Nickname)
+	}
+}
+
 // Ping			 godoc
 // @Summary      Ping the node locally from the UI
 // @Description  Ping the node locally from the UI

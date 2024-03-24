@@ -75,6 +75,7 @@ func main() {
 	api := router.Group("/api/v0")
 	api.GET("/", utils.Ok)
 	api.GET("/ping", utils.Ping)
+	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/id", vpn.GetPeerId)
 
