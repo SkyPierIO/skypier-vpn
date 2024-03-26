@@ -35,42 +35,47 @@ func SetInterfaceUp() {
 	netlink.AddrAdd(pierIface, addr)
 	netlink.LinkSetUp(pierIface)
 
-	if utils.IsDebugEnabled() {
-		var frame ethernet.Frame
-		for {
-			frame.Resize(1500) // MTU
-			packet := []byte(frame)
-			n, err := iface.Read(packet)
-			if err != nil {
-				log.Fatal(err)
-			}
-			frame = frame[:n]
+	isDebugEnabled := utils.IsDebugEnabled()
+
+	var frame ethernet.Frame
+	for {
+		frame.Resize(1500) // MTU
+		packet := []byte(frame)
+		n, err := iface.Read(packet)
+		if err != nil {
+			log.Fatal(err)
+		}
+		frame = frame[:n]
+		if isDebugEnabled {
 			log.Printf("\n────────────── ETHERNET TYPE II ──────────────────")
 			log.Printf("Dst MAC addr: %s\n", frame.Destination())
 			log.Printf("Src MAC addr: %s\n", frame.Source())
 			log.Printf("EtherType: % x\n", frame.Ethertype())
 			log.Printf("Payload: % x\n", frame.Payload())
-			if frame.Ethertype() == ethernet.IPv4 {
-				// 	Example Internet Datagram Header
-				//
-				// 	0                   1                   2                   3
-				// 	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-				// |Version|  IHL  |Type of Service|          Total Length         |
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-				// |         Identification        |Flags|      Fragment Offset    |
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-				// |  Time to Live |    Protocol   |         Header Checksum       |
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-				// |                       Source Address                          |
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-				// |                    Destination Address                        |
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-				// |                    Options                    |    Padding    |
-				// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		}
+		if frame.Ethertype() == ethernet.IPv4 {
+			// 	Example Internet Datagram Header
+			//
+			// 	0                   1                   2                   3
+			// 	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |Version|  IHL  |Type of Service|          Total Length         |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |         Identification        |Flags|      Fragment Offset    |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Time to Live |    Protocol   |         Header Checksum       |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                       Source Address                          |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                    Destination Address                        |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                    Options                    |    Padding    |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-				ipDst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
-				ipSrc := net.IPv4(packet[20], packet[21], packet[22], packet[23]).String()
+			ipDst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
+			ipSrc := net.IPv4(packet[20], packet[21], packet[22], packet[23]).String()
+
+			if isDebugEnabled {
 				log.Printf("─────────────────── IP packet ────────────────────")
 				log.Printf("IP dst: %s\n", ipDst)
 				log.Printf("IP src: %s\n", ipSrc)

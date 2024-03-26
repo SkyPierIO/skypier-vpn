@@ -79,6 +79,23 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/nickname": {
+            "get": {
+                "description": "Get the node nickname",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Get the node nickname",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/ping": {
             "get": {
                 "description": "Ping the node locally from the UI",

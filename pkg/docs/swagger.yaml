@@ -53,6 +53,17 @@ paths:
       summary: Get the local peer ID
       tags:
       - VPN
+  /nickname:
+    get:
+      description: Get the node nickname
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Get the node nickname
+      tags:
+      - VPN
   /ping:
     get:
       description: Ping the node locally from the UI
