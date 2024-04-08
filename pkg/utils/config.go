@@ -56,7 +56,7 @@ func LoadConfiguration(file string) (Config, error) {
 func GetConfiguration(c *gin.Context) {
 	configContent, err := LoadConfiguration("./config.json")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	log.Println(configContent)
 	c.IndentedJSON(200, configContent)

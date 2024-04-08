@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,14 +9,15 @@ import (
 
 func Check(err error) {
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
 func IsDebugEnabled() bool {
 	config, err := LoadConfiguration("./config.json")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
+		return true
 	} else {
 		return config.Debug
 	}
@@ -31,7 +33,7 @@ func IsDebugEnabled() bool {
 func Nickname(c *gin.Context) {
 	config, err := LoadConfiguration("./config.json")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	} else {
 		c.IndentedJSON(200, config.Nickname)
 	}

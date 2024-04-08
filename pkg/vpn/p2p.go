@@ -48,7 +48,7 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	}
 	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	log.Println("libp2p peer address:")
 	for i := 0; i < len(addrs); i++ {
@@ -146,7 +146,7 @@ func BootstrapNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort str
 	// Bootstrap the DHT. In the default configuration, this spawns a Background
 	// thread that will refresh the peer table every five minutes.
 	if err = newDHT.Bootstrap(ctx); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// This connects to public bootstrappers
@@ -185,14 +185,14 @@ func SetNodeUp(config utils.InnerConfig) {
 
 	// addr, err := multiaddr.NewMultiaddr("/p2p/12D3KooWB7JEdAmeuranEgNDqKZ738ynUcZMhaTQoAzN9wxGPL3H")
 	// if err != nil {
-	// 	panic(err)
+	// 	log.Fatal(err)
 	// }
 	// peer, err := peerstore.AddrInfoFromP2pAddr(addr)
 	// if err != nil {
-	// 	panic(err)
+	// 	log.Fatal(err)
 	// }
 	// if err := node.Connect(ctx, *peer); err != nil {
-	// 	panic(err)
+	// 	log.Fatal(err)
 	// }
 	// log.Println("sending 3 ping messages to", addr)
 	// ch := pingService.Ping(ctx, peer.ID)

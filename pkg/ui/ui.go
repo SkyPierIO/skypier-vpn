@@ -3,6 +3,7 @@ package ui
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
@@ -24,7 +25,7 @@ var (
 func LaunchUI() {
 	dist, err := fs.Sub(web, "web/dist")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	http.Handle(
