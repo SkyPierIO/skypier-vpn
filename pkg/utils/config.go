@@ -33,7 +33,7 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{"MySkypierNode", false, "", false, false}
+		config = Config{"MySkypierNode", false, "", false, true}
 		return config, err
 	} else {
 		defer configFile.Close()
@@ -54,7 +54,7 @@ func LoadConfiguration(file string) (Config, error) {
 // @Failure      500
 // @Router       /getConfig [get]
 func GetConfiguration(c *gin.Context) {
-	configContent, err := LoadConfiguration("./config.json")
+	configContent, err := LoadConfiguration("/etc/skypier/config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func InitConfiguration(file string) error {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{"MySkypierNode", true, "", false, false}
+		config := Config{"MySkypierNode", false, "", false, true}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err
@@ -91,7 +91,7 @@ func InitConfiguration(file string) error {
 func SaveConfig(config Config) error {
 	content, err := json.MarshalIndent(config, "", "    ")
 	Check(err)
-	err = os.WriteFile("./config.json", content, 0664)
+	err = os.WriteFile("/etc/skypier/config.json", content, 0664)
 	Check(err)
 	return nil
 }

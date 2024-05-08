@@ -14,7 +14,7 @@ func Check(err error) {
 }
 
 func IsDebugEnabled() bool {
-	config, err := LoadConfiguration("./config.json")
+	config, err := LoadConfiguration("/etc/skypier/config.json")
 	if err != nil {
 		log.Fatal(err)
 		return true
@@ -31,7 +31,7 @@ func IsDebugEnabled() bool {
 // @Success      200
 // @Router       /nickname [get]
 func Nickname(c *gin.Context) {
-	config, err := LoadConfiguration("./config.json")
+	config, err := LoadConfiguration("/etc/skypier/config.json")
 	if err != nil {
 		log.Fatal(err)
 	} else {

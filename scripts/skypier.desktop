@@ -1,0 +1,10 @@
+#!/usr/bin/env xdg-open
+
+[Desktop Entry]
+Type=Application
+Name=Skypier-VPN
+Terminal=true
+Exec=/opt/skypier/start.sh
+Icon=/opt/skypier/skypier.svg
+Comment=The web3 VPN
+Categories=Network;VPN;

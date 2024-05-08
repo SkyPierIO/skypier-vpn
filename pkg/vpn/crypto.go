@@ -23,7 +23,7 @@ func generateNewSecp256k1PrivateKey() (crypto.PrivKey, string, error) {
 }
 
 func loadPrivateKey() (crypto.PrivKey, error) {
-	config, err := utils.LoadConfiguration("./config.json")
+	config, err := utils.LoadConfiguration("/etc/skypier/config.json")
 	if err != nil {
 		newPk, newPkBase64, err := generateNewSecp256k1PrivateKey()
 		utils.Check(err)

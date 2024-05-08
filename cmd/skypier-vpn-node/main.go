@@ -11,6 +11,7 @@ import (
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/SkyPierIO/skypier-vpn/pkg/vpn"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 )
@@ -35,8 +36,8 @@ func main() {
 
 	// CONFIGURATION
 	utils.Greetings("Skypier")
-	utils.InitConfiguration("./config.json")
-	config, err := utils.LoadConfiguration("./config.json")
+	utils.InitConfiguration("/etc/skypier/config.json")
+	config, err := utils.LoadConfiguration("/etc/skypier/config.json")
 	utils.Check(err)
 	innerConfig := utils.InnerConfig{
 		Port:            8081,
@@ -51,13 +52,13 @@ func main() {
 	router := gin.Default()
 
 	router.SetTrustedProxies(nil)
-	// router.Use(cors.Default())
+	router.Use(cors.Default())
 
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
 
 	// UI routes
-	localFile := "./pkg/ui/web/dist"
+	localFile := "pkg/ui/web/dist"
 	fs := static.LocalFile(localFile, false)
 	router.Use(static.Serve("/", fs))
 	router.Use(static.Serve("/Explore_peers/", fs))
@@ -88,5 +89,4 @@ func main() {
 
 	// Run with HTTP
 	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
-
 }
