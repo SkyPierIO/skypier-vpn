@@ -8,11 +8,11 @@ import (
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/SkyPierIO/skypier-vpn/pkg/ui"
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/SkyPierIO/skypier-vpn/pkg/vpn"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
@@ -57,19 +57,8 @@ func main() {
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	router.Use(gin.Recovery())
 
-	// UI routes
-	localFile := "pkg/ui/web/dist"
-	fs := static.LocalFile(localFile, false)
-	router.Use(static.Serve("/", fs))
-	router.Use(static.Serve("/Explore_peers/", fs))
-	router.Use(static.Serve("/Dashboard/", fs))
-	router.Use(static.Serve("/Saved_peers/", fs))
-	router.Use(static.Serve("/Host_a_node/", fs))
-	router.Use(static.Serve("/Settings/", fs))
-	router.Use(static.Serve("/My_subscription/", fs))
-	router.NoRoute(func(c *gin.Context) {
-		c.File(localFile)
-	})
+	// React SPA Middleware (must be last middleware declared)
+	router.Use(ui.NewHandler().ServeSPA)
 	log.Println("VPN UI available at http://127.0.0.1:8081/")
 
 	// API Router

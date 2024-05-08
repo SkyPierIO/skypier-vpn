@@ -20,7 +20,8 @@ echo -e "              .cxOOOOOOOOOOOOOOOOk: .lkOOOOOOOOOOOOOkc.            "
 echo -e "                 .,cldxxxxxdol:,.      .;codxxxdol;.               "
 echo -e "\n\n"
 echo -e "You need to run Skypier as a super user.\n"
+sudo echo "Starting..."
 sudo /opt/skypier/skypier-vpn-node &
-sleep 7
+# sleep 7
 open http://127.0.0.1:8081/ 2> /dev/null
 wait
