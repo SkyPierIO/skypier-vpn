@@ -59,7 +59,7 @@ func main() {
 
 	// React SPA Middleware (must be last middleware declared)
 	router.Use(ui.NewHandler().ServeSPA)
-	log.Println("VPN UI available at http://127.0.0.1:8081/")
+	log.Printf("VPN UI available at http://skypier.localhost:%d/\n", innerConfig.Port)
 
 	// API Router
 	api := router.Group("/api/v0")
@@ -73,7 +73,7 @@ func main() {
 	if config.SwaggerEnabled {
 		docs.SwaggerInfo.BasePath = "/api/v0"
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-		log.Println("Swagger UI available at http://127.0.0.1:8081/swagger/index.html")
+		log.Println("Swagger UI available at http://skypier.localhost:8081/swagger/index.html")
 	}
 
 	// Run with HTTP
