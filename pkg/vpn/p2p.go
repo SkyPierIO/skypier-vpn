@@ -24,6 +24,7 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	"github.com/multiformats/go-multiaddr"
 )
 
 // GetPeerId     godoc
@@ -62,7 +63,7 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	log.Println("DHT Pub Key Struct : ", pubKey)
 }
 
-func BootstrapNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
+func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
 	// Init a libp2p node
 	// ----------------------------------------------------------
 
@@ -149,15 +150,22 @@ func BootstrapNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort str
 		log.Fatal(err)
 	}
 
+	// Dev test bootstrap node (NL)
+	initPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
+	utils.Check(err)
+	skypierBootstrapPeers := [...]multiaddr.Multiaddr{
+		initPeer,
+	}
+
 	// This connects to public bootstrappers
-	for _, addr := range dht.DefaultBootstrapPeers {
+	// use `dht.DefaultBootstrapPeers` for IPFS public bootstrap nodes
+	for _, addr := range skypierBootstrapPeers {
 		pi, _ := peerstore.AddrInfoFromP2pAddr(addr)
 		// We ignore errors as some bootstrap peers may be down
 		// and that is fine.
 		err := node.Connect(ctx, *pi)
 		utils.Check(err)
 		log.Println("Connected to bootstrap peer: ", pi.ID)
-
 	}
 
 	// Set the Skypier protocol handler on the Host's Mux
@@ -172,10 +180,10 @@ func SetNodeUp(config utils.InnerConfig) {
 	utils.Check(err)
 
 	// Find available port for both TCP and UDP
-	tcpPort := utils.GetFirstAvailableTCPPort(4001, 4999)
-	udpPort := utils.GetFirstAvailableTCPPort(4001, 4999)
+	tcpPort := utils.GetFirstAvailableTCPPort(4002, 4999)
+	udpPort := utils.GetFirstAvailableTCPPort(4002, 4999)
 
-	node, dht, err := BootstrapNode(config, privKey, tcpPort, udpPort)
+	node, dht, err := StartNode(config, privKey, tcpPort, udpPort)
 	utils.Check(err)
 	displayNodeInfo(node, dht)
 
