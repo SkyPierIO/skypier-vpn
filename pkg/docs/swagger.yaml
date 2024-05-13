@@ -53,6 +53,16 @@ paths:
       summary: Get the local peer ID
       tags:
       - VPN
+  /me:
+    get:
+      description: Get the local libp2p peer ID and details (OS, uptime, version,
+        etc.)
+      produces:
+      - application/json
+      responses: {}
+      summary: Get the local peer details
+      tags:
+      - VPN
   /nickname:
     get:
       description: Get the node nickname

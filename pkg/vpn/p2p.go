@@ -3,6 +3,7 @@ package vpn
 import (
 	"context"
 	"log"
+	"runtime"
 	"time"
 
 	b64 "encoding/base64"
@@ -27,14 +28,53 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-// GetPeerId     godoc
+type SkypierNode struct {
+	PeerId          string `json:"peerId"`
+	Nickname        string `json:"nickname,omitempty"`
+	Version         string `json:"version"`
+	OperatingSystem string `json:"os"`
+	// Uptime          time.Duration `json:"uptime"`
+}
+
+// GetLocalPeerId     godoc
 // @Summary      Get the local peer ID
 // @Description  Get the local libp2p peer ID (this is the identity of your node on the Skypier Network)
 // @Tags         VPN
 // @Produce      json
 // @Router       /id [get]
-func GetPeerId(c *gin.Context) {
-	c.IndentedJSON(200, "TODO")
+func GetLocalPeerId(node host.Host) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		type PeerBrief struct {
+			Id string `json:"peerId"`
+		}
+		p := &PeerBrief{Id: node.ID().String()}
+		c.IndentedJSON(200, p)
+	}
+	return gin.HandlerFunc(fn)
+}
+
+// GetLocalPeerDetails     godoc
+// @Summary      Get the local peer details
+// @Description  Get the local libp2p peer ID and details (OS, uptime, version, etc.)
+// @Tags         VPN
+// @Produce      json
+// @Router       /me [get]
+func GetLocalPeerDetails(node host.Host) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		peerId := node.ID()
+		config, err := utils.LoadConfiguration("/etc/skypier/config.json")
+		utils.Check(err)
+
+		skypierNode := &SkypierNode{
+			PeerId:          peerId.String(),
+			Nickname:        config.Nickname,
+			Version:         "v0.0.1",
+			OperatingSystem: runtime.GOOS,
+		}
+
+		c.IndentedJSON(200, skypierNode)
+	}
+	return gin.HandlerFunc(fn)
 }
 
 func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
@@ -151,6 +191,9 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	}
 
 	// Dev test bootstrap node (NL)
+	// TODO add more bootstrap nodes for Skypier in other countries to avoid single point of failure
+	// TODO add some bootstrap nodes with TCP && QUIC
+	// TODO avoid having default bootstrap nodes hardcoded here. could be get from an online URI, easier for future update
 	initPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
 	utils.Check(err)
 	skypierBootstrapPeers := [...]multiaddr.Multiaddr{
@@ -174,7 +217,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	return node, newDHT, err
 }
 
-func SetNodeUp(config utils.InnerConfig) {
+func SetNodeUp(config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
 	log.Println("Generating identity...")
 	privKey, err := loadPrivateKey()
 	utils.Check(err)
@@ -209,6 +252,7 @@ func SetNodeUp(config utils.InnerConfig) {
 	// 	log.Println("pinged", addr, "in", res.RTT)
 	// }
 
+	return node, dht
 }
 
 var RevLookup map[string]string

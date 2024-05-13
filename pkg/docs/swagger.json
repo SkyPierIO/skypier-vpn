@@ -73,6 +73,19 @@
                 "responses": {}
             }
         },
+        "/me": {
+            "get": {
+                "description": "Get the local libp2p peer ID and details (OS, uptime, version, etc.)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Get the local peer details",
+                "responses": {}
+            }
+        },
         "/nickname": {
             "get": {
                 "description": "Get the node nickname",

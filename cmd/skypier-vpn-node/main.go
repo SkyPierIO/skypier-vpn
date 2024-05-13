@@ -46,7 +46,7 @@ func main() {
 	}
 
 	go vpn.SetInterfaceUp()
-	go vpn.SetNodeUp(innerConfig)
+	node, _ := vpn.SetNodeUp(innerConfig)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
@@ -67,7 +67,8 @@ func main() {
 	api.GET("/ping", utils.Ping)
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
-	api.GET("/id", vpn.GetPeerId)
+	api.GET("/id", vpn.GetLocalPeerId(node))
+	api.GET("/me", vpn.GetLocalPeerDetails(node))
 
 	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {
