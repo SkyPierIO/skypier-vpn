@@ -41,7 +41,7 @@ go build -o build/skypier-vpn-node cmd/skypier-vpn-node/main.go
 
 ## Install pre-built binary
 
-1. Get the latest release for your Operating System [here](#)
+1. Get the latest release for your Operating System [here](https://github.com/SkyPierIO/skypier-vpn/releases)
 2. Run the installation script 
 
     ```bash

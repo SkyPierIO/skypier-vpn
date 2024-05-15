@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"strconv"
 
@@ -34,6 +35,9 @@ import (
 // @externalDocs.url          https://swagger.io/resources/open-api/
 func main() {
 
+	// Setup System Context
+	ctx := context.Background()
+
 	// CONFIGURATION
 	utils.Greetings("Skypier")
 	utils.InitConfiguration("/etc/skypier/config.json")
@@ -46,7 +50,7 @@ func main() {
 	}
 
 	go vpn.SetInterfaceUp()
-	node, _ := vpn.SetNodeUp(innerConfig)
+	node, dht := vpn.SetNodeUp(ctx, innerConfig)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
@@ -69,6 +73,7 @@ func main() {
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/id", vpn.GetLocalPeerId(node))
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
+	api.GET("/ping/:peerId", vpn.PingPeer(node, dht))
 
 	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {

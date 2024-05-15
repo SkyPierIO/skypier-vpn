@@ -77,7 +77,51 @@ func GetLocalPeerDetails(node host.Host) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
+// PingPeer     godoc
+// @Summary      Ping a remote host (using Libp2p Ping Protocol)
+// @Description  Find the addresses from a multiaddr, connect to the peer and share a ping
+// @Tags         VPN
+// @Produce      json
+// @Router       /ping/<peerId> [get]
+func PingPeer(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		addrString := "/p2p/" + c.Param("peerId")
+		log.Println(addrString)
+		addr, err := multiaddr.NewMultiaddr(addrString)
+		if err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, err.Error())
+			return
+		}
+		dstPeer, err := peerstore.AddrInfoFromP2pAddr(addr)
+		if err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, err)
+			return
+		}
+		log.Println(dstPeer)
+		if err := node.Connect(c, *dstPeer); err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, err)
+			return
+		}
+		if err := dht.Ping(c, dstPeer.ID); err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, err)
+			return
+		}
+		res := "{'result': 'Pinged " + addr.String() + "'}"
+		if err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, err)
+			return
+		}
+		c.IndentedJSON(200, res)
+	}
+	return gin.HandlerFunc(fn)
+}
+
+func displayNodeInfo(ctx context.Context, node host.Host, dht *dht.IpfsDHT) {
 	// print node ID
 	log.Println("───────────────────────────────────────────────────")
 	log.Println("libp2p peer ID: ", node.ID())
@@ -88,9 +132,8 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 		Addrs: node.Addrs(),
 	}
 	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
-	if err != nil {
-		log.Fatal(err)
-	}
+	utils.Check(err)
+
 	log.Println("libp2p peer address:")
 	for i := 0; i < len(addrs); i++ {
 		log.Println("\t", addrs[i])
@@ -101,6 +144,16 @@ func displayNodeInfo(node host.Host, dht *dht.IpfsDHT) {
 	utils.Check(err)
 
 	log.Println("DHT Pub Key Struct : ", pubKey)
+
+	// id := "12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek"
+	// if node.Network().Connectedness("12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek") != network.Connected {
+	// 	addrs, _ := dht.FindPeer(ctx, "12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
+	// 	// utils.Check(err)
+	// 	fmt.Print(addrs)
+	// 	n, _ := node.Network().DialPeer(ctx, addrs.ID)
+	// 	// utils.Check(err)
+	// 	fmt.Print(n)
+	// }
 }
 
 func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
@@ -194,10 +247,12 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// TODO add more bootstrap nodes for Skypier in other countries to avoid single point of failure
 	// TODO add some bootstrap nodes with TCP && QUIC
 	// TODO avoid having default bootstrap nodes hardcoded here. could be get from an online URI, easier for future update
-	initPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
+	// ipfsPublicPeer, err := multiaddr.NewMultiaddr("/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb")
+	skypierPublicPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
 	utils.Check(err)
 	skypierBootstrapPeers := [...]multiaddr.Multiaddr{
-		initPeer,
+		skypierPublicPeer,
+		// ipfsPublicPeer,
 	}
 
 	// This connects to public bootstrappers
@@ -217,7 +272,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	return node, newDHT, err
 }
 
-func SetNodeUp(config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
+func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
 	log.Println("Generating identity...")
 	privKey, err := loadPrivateKey()
 	utils.Check(err)
@@ -228,7 +283,7 @@ func SetNodeUp(config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
 
 	node, dht, err := StartNode(config, privKey, tcpPort, udpPort)
 	utils.Check(err)
-	displayNodeInfo(node, dht)
+	displayNodeInfo(ctx, node, dht)
 
 	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
@@ -258,6 +313,8 @@ func SetNodeUp(config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
 var RevLookup map[string]string
 
 func streamHandler(stream network.Stream) {
+	log.Println("Entered the stream handler...")
+
 	// If the remote node ID isn't in the list of known nodes don't respond.
 	if _, ok := RevLookup[stream.Conn().RemotePeer().ShortString()]; !ok {
 		stream.Reset()
