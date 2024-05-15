@@ -125,6 +125,19 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/ping/peerId": {
+            "get": {
+                "description": "Find the addresses from a multiaddr, connect to the peer and share a ping",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Ping a remote host (using Libp2p Ping Protocol)",
+                "responses": {}
+            }
         }
     },
     "externalDocs": {

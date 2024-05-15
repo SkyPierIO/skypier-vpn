@@ -82,7 +82,7 @@ func GetLocalPeerDetails(node host.Host) gin.HandlerFunc {
 // @Description  Find the addresses from a multiaddr, connect to the peer and share a ping
 // @Tags         VPN
 // @Produce      json
-// @Router       /ping/<peerId> [get]
+// @Router       /ping/peerId [get]
 func PingPeer(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		addrString := "/p2p/" + c.Param("peerId")
@@ -90,33 +90,31 @@ func PingPeer(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		addr, err := multiaddr.NewMultiaddr(addrString)
 		if err != nil {
 			log.Println(err)
-			c.IndentedJSON(400, err.Error())
+			c.IndentedJSON(200, err.Error())
 			return
 		}
 		dstPeer, err := peerstore.AddrInfoFromP2pAddr(addr)
 		if err != nil {
 			log.Println(err)
-			c.IndentedJSON(400, err)
+			c.IndentedJSON(200, err)
 			return
 		}
 		log.Println(dstPeer)
 		if err := node.Connect(c, *dstPeer); err != nil {
 			log.Println(err)
-			c.IndentedJSON(400, err)
+			c.IndentedJSON(200, err)
 			return
 		}
 		if err := dht.Ping(c, dstPeer.ID); err != nil {
 			log.Println(err)
-			c.IndentedJSON(400, err)
+			c.IndentedJSON(200, err)
 			return
 		}
-		res := "{'result': 'Pinged " + addr.String() + "'}"
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, err)
-			return
+		type Result struct {
+			Res string `json:"result"`
 		}
-		c.IndentedJSON(200, res)
+		r := &Result{Res: "Pinged " + addr.String()}
+		c.IndentedJSON(200, r)
 	}
 	return gin.HandlerFunc(fn)
 }
@@ -189,10 +187,10 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	node, err := libp2p.New(
 		// Multiple listen addresses
 		libp2p.ListenAddrStrings(
-			"/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC
+			// "/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC
 			"/ip4/0.0.0.0/udp/"+udpPort+"/quic-v1", // IPv4 QUIC
-			"/ip6/::/tcp/"+tcpPort,                 // IPv6 TCP
-			"/ip4/0.0.0.0/tcp/"+tcpPort,            // IPv4 TCP
+			// "/ip6/::/tcp/"+tcpPort,                 // IPv6 TCP
+			"/ip4/0.0.0.0/tcp/"+tcpPort, // IPv4 TCP
 		),
 		// Use the keypair we generated / from config file
 		libp2p.Identity(pk),
@@ -218,6 +216,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 			return idht, err
 		}),
 		libp2p.FallbackDefaults,
+		libp2p.Ping(true),
 	)
 	utils.Check(err)
 	// defer node.Close()
