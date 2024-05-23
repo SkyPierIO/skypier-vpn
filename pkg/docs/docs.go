@@ -126,7 +126,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ping/peerId": {
+        "/ping/{peerId}": {
             "get": {
                 "description": "Find the addresses from a multiaddr, connect to the peer and share a ping",
                 "produces": [
@@ -136,6 +136,15 @@ const docTemplate = `{
                     "VPN"
                 ],
                 "summary": "Ping a remote host (using Libp2p Ping Protocol)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer ID",
+                        "name": "peerId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {}
             }
         }

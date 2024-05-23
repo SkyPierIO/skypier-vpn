@@ -85,10 +85,16 @@ paths:
       summary: Ping the node locally from the UI
       tags:
       - VPN
-  /ping/peerId:
+  /ping/{peerId}:
     get:
       description: Find the addresses from a multiaddr, connect to the peer and share
         a ping
+      parameters:
+      - description: Peer ID
+        in: path
+        name: peerId
+        required: true
+        type: string
       produces:
       - application/json
       responses: {}

@@ -1,10 +1,25 @@
 package utils
 
 import (
+	"io"
 	"net"
+	"net/http"
 	"strconv"
 	"time"
 )
+
+func GetPublicIPv4Address() string {
+	req, err := http.Get("https://whatismyip.akamai.com/")
+	if err != nil {
+		return err.Error()
+	}
+	defer req.Body.Close()
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return err.Error()
+	}
+	return string(body)
+}
 
 func GetFirstAvailableTCPPort(first int, last int) string {
 	for port := first; port <= last; port++ {

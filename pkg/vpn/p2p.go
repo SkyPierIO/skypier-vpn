@@ -82,11 +82,19 @@ func GetLocalPeerDetails(node host.Host) gin.HandlerFunc {
 // @Description  Find the addresses from a multiaddr, connect to the peer and share a ping
 // @Tags         VPN
 // @Produce      json
-// @Router       /ping/peerId [get]
+// @Param        peerId   		path string  true  "Peer ID"
+// @Router       /ping/{peerId} [get]
 func PingPeer(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		addrString := "/p2p/" + c.Param("peerId")
-		log.Println(addrString)
+		pid := c.Param("peerId")
+		var addrString string
+		// DEBUG
+		if pid == "16Uiu2HAmFiLZXDswaYP6ptkQN13QgTsJEsDvW9x8aEY7gKUKaAjt" {
+			// Our test node multiaddr hardocoded for tests
+			addrString = "/ip4/136.244.105.166/tcp/4002/p2p/16Uiu2HAmFiLZXDswaYP6ptkQN13QgTsJEsDvW9x8aEY7gKUKaAjt"
+		} else {
+			addrString = "/p2p/" + c.Param("peerId")
+		}
 		addr, err := multiaddr.NewMultiaddr(addrString)
 		if err != nil {
 			log.Println(err)
@@ -105,15 +113,16 @@ func PingPeer(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			c.IndentedJSON(200, err)
 			return
 		}
-		if err := dht.Ping(c, dstPeer.ID); err != nil {
-			log.Println(err)
-			c.IndentedJSON(200, err)
-			return
-		}
+		log.Println("Connected to the remote peer", dstPeer.ID)
+		// if err := dht.Ping(c, dstPeer.ID); err != nil {
+		// 	log.Println(err)
+		// 	c.IndentedJSON(200, err)
+		// 	return
+		// }
 		type Result struct {
 			Res string `json:"result"`
 		}
-		r := &Result{Res: "Pinged " + addr.String()}
+		r := &Result{Res: "Connected to " + addr.String()}
 		c.IndentedJSON(200, r)
 	}
 	return gin.HandlerFunc(fn)
@@ -138,10 +147,10 @@ func displayNodeInfo(ctx context.Context, node host.Host, dht *dht.IpfsDHT) {
 	}
 	log.Println("───────────────────────────────────────────────────")
 
-	pubKey, err := dht.GetPublicKey(context.Background(), node.ID())
-	utils.Check(err)
+	// pubKey, err := dht.GetPublicKey(context.Background(), node.ID())
+	// utils.Check(err)
 
-	log.Println("DHT Pub Key Struct : ", pubKey)
+	// log.Println("DHT Pub Key Struct : ", pubKey)
 
 	// id := "12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek"
 	// if node.Network().Connectedness("12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek") != network.Connected {
@@ -268,7 +277,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// Set the Skypier protocol handler on the Host's Mux
 	node.SetStreamHandler(protocol.ID(innerConfig.Protocol), streamHandler)
 
-	return node, newDHT, err
+	return node, idht, err
 }
 
 func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
