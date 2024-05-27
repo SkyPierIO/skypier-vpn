@@ -73,7 +73,8 @@ func main() {
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/id", vpn.GetLocalPeerId(node))
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
-	api.GET("/ping/:peerId", vpn.PingPeer(node, dht))
+	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
+	api.GET("/connect/:peerId", vpn.Connect(node, dht))
 
 	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {

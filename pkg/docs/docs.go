@@ -40,6 +40,28 @@ const docTemplate = `{
                 }
             }
         },
+        "/connect/{peerId}": {
+            "get": {
+                "description": "Connect to a remote libp2p peer and enable new Stream",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Connect to a remote libp2p peer and enable new Stream",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer ID",
+                        "name": "peerId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/getConfig": {
             "get": {
                 "description": "Get the content of the configuration file",
@@ -128,14 +150,14 @@ const docTemplate = `{
         },
         "/ping/{peerId}": {
             "get": {
-                "description": "Find the addresses from a multiaddr, connect to the peer and share a ping",
+                "description": "Find the addresses from a multiaddr and try to connect to the peer",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "VPN"
                 ],
-                "summary": "Ping a remote host (using Libp2p Ping Protocol)",
+                "summary": "Test the connectivity of a remote host (using Libp2p Connect)",
                 "parameters": [
                     {
                         "type": "string",

@@ -26,6 +26,21 @@ paths:
       summary: Default root API message
       tags:
       - VPN
+  /connect/{peerId}:
+    get:
+      description: Connect to a remote libp2p peer and enable new Stream
+      parameters:
+      - description: Peer ID
+        in: path
+        name: peerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Connect to a remote libp2p peer and enable new Stream
+      tags:
+      - VPN
   /getConfig:
     get:
       description: Get the content of the configuration file
@@ -87,8 +102,7 @@ paths:
       - VPN
   /ping/{peerId}:
     get:
-      description: Find the addresses from a multiaddr, connect to the peer and share
-        a ping
+      description: Find the addresses from a multiaddr and try to connect to the peer
       parameters:
       - description: Peer ID
         in: path
@@ -98,7 +112,7 @@ paths:
       produces:
       - application/json
       responses: {}
-      summary: Ping a remote host (using Libp2p Ping Protocol)
+      summary: Test the connectivity of a remote host (using Libp2p Connect)
       tags:
       - VPN
 swagger: "2.0"
