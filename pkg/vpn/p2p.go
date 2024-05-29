@@ -87,22 +87,8 @@ func GetLocalPeerDetails(node host.Host) gin.HandlerFunc {
 // @Router       /ping/{peerId} [get]
 func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		pid := c.Param("peerId")
-		var addrString string
-		// DEBUG
-		if pid == "16Uiu2HAmFiLZXDswaYP6ptkQN13QgTsJEsDvW9x8aEY7gKUKaAjt___" {
-			// Our test node multiaddr hardocoded for tests
-			addrString = "/ip4/136.244.105.166/tcp/4002/p2p/16Uiu2HAmFiLZXDswaYP6ptkQN13QgTsJEsDvW9x8aEY7gKUKaAjt"
-		} else {
-			addrString = "/p2p/" + c.Param("peerId")
-		}
-		addr, err := multiaddr.NewMultiaddr(addrString)
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(200, err.Error())
-			return
-		}
-		dstPeer, err := peerstore.AddrInfoFromP2pAddr(addr)
+		addrString := "/p2p/" + c.Param("peerId")
+		dstPeer, err := peerstore.AddrInfoFromString(addrString)
 		if err != nil {
 			log.Println(err)
 			c.IndentedJSON(200, err)
@@ -114,11 +100,11 @@ func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			c.IndentedJSON(200, err)
 			return
 		}
-		log.Println("Connected to the remote peer", dstPeer.ID)
+		log.Println("Connected to the remote peer", dstPeer.ID, dstPeer.Addrs)
 		type Result struct {
 			Res string `json:"result"`
 		}
-		r := &Result{Res: "Connected to " + addr.String()}
+		r := &Result{Res: "Connected to " + addrString}
 		c.IndentedJSON(200, r)
 	}
 	return gin.HandlerFunc(fn)
@@ -133,22 +119,8 @@ func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 // @Router       /connect/{peerId} [get]
 func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		pid := c.Param("peerId")
-		var addrString string
-		// DEBUG
-		if pid == "16Uiu2HAmFiLZXDswaYP6ptkQN13QgTsJEsDvW9x8aEY7gKUKaAjt___" {
-			// Our test node multiaddr hardocoded for tests
-			addrString = "/ip4/136.244.105.166/tcp/4002/p2p/16Uiu2HAmFiLZXDswaYP6ptkQN13QgTsJEsDvW9x8aEY7gKUKaAjt"
-		} else {
-			addrString = "/p2p/" + c.Param("peerId")
-		}
-		addr, err := multiaddr.NewMultiaddr(addrString)
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(200, err.Error())
-			return
-		}
-		dstPeer, err := peerstore.AddrInfoFromP2pAddr(addr)
+		addrString := "/p2p/" + c.Param("peerId")
+		dstPeer, err := peerstore.AddrInfoFromString(addrString)
 		if err != nil {
 			log.Println(err)
 			c.IndentedJSON(200, err)
@@ -175,7 +147,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 		}
-		res := fmt.Sprintf("Created a stream to the remote node %v, and sent %d bytes.", dstPeer.ID, n)
+		res := fmt.Sprintf("Created a stream to the remote node %v, and sent %d bytes. %v", dstPeer.ID, n, dstPeer.Addrs)
 		type Result struct {
 			Res string `json:"result"`
 		}
@@ -323,6 +295,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// TODO avoid having default bootstrap nodes hardcoded here. could be get from an online URI, easier for future update
 
 	ipfsPublicPeer, err := multiaddr.NewMultiaddr("/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb")
+	utils.Check(err)
 	skypierPublicPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
 	utils.Check(err)
 	skypierBootstrapPeers := [...]multiaddr.Multiaddr{
