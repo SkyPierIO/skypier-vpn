@@ -27,6 +27,7 @@ import (
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
+	"golang.org/x/net/ipv4"
 )
 
 type SkypierNode struct {
@@ -143,16 +144,40 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 		}
-		n, err := s.Write([]byte("Hello World!"))
-		if err != nil {
-			log.Println(err)
-		}
-		res := fmt.Sprintf("Created a stream to the remote node %v, and sent %d bytes. %v", dstPeer.ID, n, dstPeer.Addrs)
+		iface := SetInterfaceUp()
+		res := fmt.Sprintf("Created a stream to the remote node and created `%v` VPN interface.", iface.Name())
 		type Result struct {
 			Res string `json:"result"`
 		}
 		r := &Result{Res: res}
 		c.IndentedJSON(200, r)
+		packet := make([]byte, 1500)
+		for {
+			plen, err := iface.Read(packet)
+			if err != nil {
+				break
+			}
+			// debug
+			header, _ := ipv4.ParseHeader(packet[:plen])
+			fmt.Printf("Sending to remote: %+v (%+v)\n", header, err)
+			// real send
+			n, err := s.Write(packet[:plen])
+			if err != nil {
+				log.Println(err)
+			}
+			fmt.Printf("Connected to the remote node %v, and sent %d bytes. %v\n", dstPeer.ID, n, dstPeer.Addrs)
+		}
+
+		// n, err := s.Write([]byte("Hello there frens! WAGMI!"))
+		// if err != nil {
+		// 	log.Println(err)
+		// }
+		// res := fmt.Sprintf("Created a stream to the remote node %v, and sent %d bytes. %v", dstPeer.ID, n, dstPeer.Addrs)
+		// type Result struct {
+		// 	Res string `json:"result"`
+		// }
+		// r := &Result{Res: res}
+		// c.IndentedJSON(200, r)
 
 	}
 	return gin.HandlerFunc(fn)
@@ -395,4 +420,20 @@ func streamHandler(stream network.Stream) {
 		}
 		// tun.Iface.Write(packet[:size])
 	}
+
+	// go func() {
+	// 	buf := make([]byte, BUFFERSIZE)
+	// 	for {
+	// 		n, addr, err := lstnConn.ReadFromUDP(buf)
+	// 		// just debug
+	// 		header, _ := ipv4.ParseHeader(buf[:n])
+	// 		fmt.Printf("Received %d bytes from %v: %+v\n", n, addr, header)
+	// 		if err != nil || n == 0 {
+	// 			fmt.Println("Error: ", err)
+	// 			continue
+	// 		}
+	// 		// write to TUN interface
+	// 		iface.Write(buf[:n])
+	// 	}
+	// }()
 }

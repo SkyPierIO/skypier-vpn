@@ -49,7 +49,7 @@ func main() {
 		ProtocolVersion: "1.0",
 	}
 
-	go vpn.SetInterfaceUp()
+	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
 
 	gin.SetMode(gin.ReleaseMode)
