@@ -183,7 +183,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-func displayNodeInfo(ctx context.Context, node host.Host, dht *dht.IpfsDHT) {
+func displayNodeInfo(node host.Host) {
 	// print node ID
 	log.Println("───────────────────────────────────────────────────")
 	log.Println("libp2p peer ID: ", node.ID())
@@ -358,7 +358,7 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 
 	node, dht, err := StartNode(config, privKey, tcpPort, udpPort)
 	utils.Check(err)
-	displayNodeInfo(ctx, node, dht)
+	displayNodeInfo(node)
 
 	// configure our own ping protocol
 	// pingService := &ping.PingService{Host: node}
