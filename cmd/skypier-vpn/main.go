@@ -5,6 +5,10 @@ import (
 	"log"
 	"strconv"
 
+	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/SkyPierIO/skypier-vpn/pkg/ui"
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/SkyPierIO/skypier-vpn/pkg/vpn"
@@ -37,6 +41,8 @@ func main() {
 	// CONFIGURATION
 	utils.Greetings("Skypier")
 	utils.InitConfiguration("/etc/skypier/config.json")
+	config, err := utils.LoadConfiguration("/etc/skypier/config.json")
+	utils.Check(err)
 	innerConfig := utils.InnerConfig{
 		Port:            8081,
 		Protocol:        "skypier",
@@ -69,6 +75,13 @@ func main() {
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
+
+	// Add a route for Swagger UI if requested in the configuration
+	if config.SwaggerEnabled {
+		docs.SwaggerInfo.BasePath = "/api/v0"
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+		log.Println("Swagger UI available at http://skypier.localhost:8081/swagger/index.html")
+	}
 
 	// Run with HTTP
 	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
