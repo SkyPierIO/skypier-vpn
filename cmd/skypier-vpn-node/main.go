@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/ui"
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
@@ -30,6 +33,15 @@ import (
 // @externalDocs.description  OpenAPI
 // @externalDocs.url          https://swagger.io/resources/open-api/
 func main() {
+
+	// Catch SIGINT when Ctrl+C is pressed, and exit gracefully
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Println("Exiting Skypier...")
+		os.Exit(1)
+	}()
 
 	// Setup System Context
 	ctx := context.Background()

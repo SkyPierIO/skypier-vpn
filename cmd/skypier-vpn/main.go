@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
 	swaggerfiles "github.com/swaggo/files"
@@ -34,6 +37,15 @@ import (
 // @externalDocs.description  OpenAPI
 // @externalDocs.url          https://swagger.io/resources/open-api/
 func main() {
+
+	// Catch SIGINT when Ctrl+C is pressed, and exit gracefully
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Println("Exiting Skypier...")
+		os.Exit(1)
+	}()
 
 	// Setup System Context
 	ctx := context.Background()
@@ -84,5 +96,6 @@ func main() {
 	}
 
 	// Run with HTTP
-	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
+	err = router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
+	utils.Check(err)
 }
