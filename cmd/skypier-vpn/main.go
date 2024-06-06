@@ -47,6 +47,8 @@ func main() {
 		os.Exit(1)
 	}()
 
+	utils.DefineAsNodeHost(false)
+
 	// Setup System Context
 	ctx := context.Background()
 

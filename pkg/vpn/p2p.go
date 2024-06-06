@@ -157,15 +157,26 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			if err != nil {
 				break
 			}
+
+			// Write out the packet's length to the libp2p stream to ensure
+			// we know the full size of the packet at the other end.
+			err = binary.Write(s, binary.LittleEndian, uint16(plen))
+			if err == nil {
+				// Write the packet out to the libp2p stream.
+				// If everyting succeeds continue on to the next packet.
+				n, err := s.Write(packet[:plen])
+				fmt.Printf("Connected to the remote node %v, and sent %d bytes. %v\n", dstPeer.ID, n, dstPeer.Addrs)
+				if err == nil {
+					continue
+				}
+			}
+			// If we encounter an error when writing to a stream we should
+			// close that stream and delete it from the active stream map.
+			// s.Close()
+
 			// debug
 			header, _ := ipv4.ParseHeader(packet[:plen])
 			fmt.Printf("Sending to remote: %+v (%+v)\n", header, err)
-			// real send
-			n, err := s.Write(packet[:plen])
-			if err != nil {
-				log.Println(err)
-			}
-			fmt.Printf("Connected to the remote node %v, and sent %d bytes. %v\n", dstPeer.ID, n, dstPeer.Addrs)
 		}
 
 		// n, err := s.Write([]byte("Hello there frens! WAGMI!"))
@@ -389,12 +400,8 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 
 func streamHandler(stream network.Stream) {
 	log.Println("Entered the stream handler...")
+	log.Println("node status", utils.IS_NODE_HOST)
 
-	// If the remote node ID isn't in the list of known nodes don't respond.
-	// if _, ok := RevLookup[stream.Conn().RemotePeer().ShortString()]; !ok {
-	// 	stream.Reset()
-	// 	return
-	// }
 	var packet = make([]byte, 1500)
 	var packetSize = make([]byte, 2)
 	for {
@@ -407,6 +414,7 @@ func streamHandler(stream network.Stream) {
 
 		// Decode the incoming packet's size from binary.
 		size := binary.LittleEndian.Uint16(packetSize)
+		log.Println("receiving packet of size", size)
 
 		// Read in the packet until completion.
 		var plen uint16 = 0
@@ -418,7 +426,13 @@ func streamHandler(stream network.Stream) {
 				return
 			}
 		}
-		// tun.Iface.Write(packet[:size])
+
+		if utils.IS_NODE_HOST {
+			fmt.Println("IS A NODE -- DEBUG")
+			// iface := SetInterfaceUp()
+			// _, err := iface.Read(packet[:size])
+			// utils.Check(err)
+		}
 	}
 
 	// go func() {

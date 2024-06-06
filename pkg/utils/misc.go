@@ -64,3 +64,9 @@ func Ok(c *gin.Context) {
 		"message": "OK",
 	})
 }
+
+var IS_NODE_HOST bool
+
+func DefineAsNodeHost(b bool) {
+	IS_NODE_HOST = b // true only for VPN nodes, false for clients
+}
