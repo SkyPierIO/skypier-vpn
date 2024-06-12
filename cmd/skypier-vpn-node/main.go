@@ -49,7 +49,7 @@ func main() {
 	ctx := context.Background()
 
 	// CONFIGURATION
-	utils.Greetings("Skypier")
+	utils.Greetings("Skypier Node")
 	utils.InitConfiguration("/etc/skypier/config.json")
 	innerConfig := utils.InnerConfig{
 		Port:            8081,
@@ -85,5 +85,6 @@ func main() {
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
 
 	// Run with HTTP
-	router.Run("0.0.0.0:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
+	err := router.Run("127.0.0.1:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
+	utils.Check(err)
 }

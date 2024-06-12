@@ -27,7 +27,13 @@ import (
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/songgao/water"
 	"golang.org/x/net/ipv4"
+)
+
+var (
+	tunEnabled bool
+	nodeIface  *water.Interface
 )
 
 type SkypierNode struct {
@@ -429,10 +435,26 @@ func streamHandler(stream network.Stream) {
 
 		if utils.IS_NODE_HOST {
 			fmt.Println("IS A NODE -- DEBUG")
-			// iface := SetInterfaceUp()
-			// _, err := iface.Read(packet[:size])
-			// utils.Check(err)
+			if !tunEnabled {
+				nodeIface = SetInterfaceUp()
+				tunEnabled = true
+				_, err := nodeIface.Write(packet[:size])
+				utils.Check(err)
+				_, err = stream.Write(packet[:size])
+				utils.Check(err)
+				log.Println("writing on stream, size in bytes:", size)
+			} else {
+				_, err = nodeIface.Write(packet[:size])
+				utils.Check(err)
+				_, err = stream.Write(packet[:size])
+				utils.Check(err)
+				log.Println("writing on stream, size in bytes:", size)
+
+			}
+		} else {
+			fmt.Println("IS A CLIENT PEER -- DEBUG")
 		}
+
 	}
 
 	// go func() {
