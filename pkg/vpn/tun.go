@@ -3,6 +3,7 @@ package vpn
 import (
 	"log"
 
+	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
 )
@@ -32,7 +33,12 @@ func SetInterfaceUp() *water.Interface {
 
 	// Configure the network interface
 	pierIface, _ := netlink.LinkByName(interfaceName)
-	addr, _ := netlink.ParseAddr("10.1.1.1/24") // TODO remove static IP
+	var addr *netlink.Addr
+	if utils.IS_NODE_HOST {
+		addr, _ = netlink.ParseAddr("10.1.1.2/24") // TODO remove static IP
+	} else {
+		addr, _ = netlink.ParseAddr("10.1.1.1/24") // TODO remove static IP
+	}
 	netlink.AddrAdd(pierIface, addr)
 	netlink.LinkSetUp(pierIface)
 

@@ -12,9 +12,9 @@ func Greetings(message string) {
 	ascii := figlet4go.NewAsciiRender()
 	options := figlet4go.NewRenderOptions()
 	options.FontColor = []figlet4go.Color{figlet4go.ColorCyan}
-	renderStr, err := ascii.RenderOpts(message, options)
+	s, err := ascii.RenderOpts(message, options)
 
-	fmt.Print(renderStr)
+	fmt.Print(s)
 	Check(err)
 
 	fmt.Println("\n───────────────────────────────────────────────────")

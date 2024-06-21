@@ -12,4 +12,3 @@ cp skypier.desktop /usr/share/applications/skypier.desktop
 
 # Create a symbolic link
 ln -s /opt/skypier/start.sh /usr/local/bin/skypier
-

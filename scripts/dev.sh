@@ -13,16 +13,3 @@ tree --si ./build
 
 echo -e "\n[+]\tRun..."
 sudo ./build/skypier-vpn
-
-
-
-
-
-
-
-
-
-
-
-
-
