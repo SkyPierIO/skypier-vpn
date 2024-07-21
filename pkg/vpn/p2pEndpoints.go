@@ -136,7 +136,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		}
 		r := &Result{Res: res}
 		c.IndentedJSON(200, r)
-		packet := make([]byte, 1500)
+		packet := make([]byte, 1420)
 		for {
 			plen, err := iface.Read(packet)
 			if err != nil {
@@ -152,16 +152,16 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				n, err := s.Write(packet[:plen])
 				fmt.Printf("Connected to the remote node %v, and sent %d bytes. %v\n", dstPeer.ID, n, dstPeer.Addrs)
 				if err == nil {
+					// debug
+					header, _ := ipv4.ParseHeader(packet[:plen])
+					fmt.Printf("Sending to remote: %+v (%+v)\n", header, err)
 					continue
 				}
 			}
 			// If we encounter an error when writing to a stream we should
 			// close that stream and delete it from the active stream map.
-			// s.Close()
+			s.Close()
 
-			// debug
-			header, _ := ipv4.ParseHeader(packet[:plen])
-			fmt.Printf("Sending to remote: %+v (%+v)\n", header, err)
 		}
 	}
 	return gin.HandlerFunc(fn)

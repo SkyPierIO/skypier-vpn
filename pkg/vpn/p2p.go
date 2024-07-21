@@ -1,6 +1,7 @@
 package vpn
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -26,6 +27,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/songgao/water"
+	"golang.org/x/net/ipv4"
 )
 
 var (
@@ -198,17 +200,54 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 	return node, dht
 }
 
-func streamHandler(stream network.Stream) {
+func streamHandler(s network.Stream) {
 	log.Println("Entered the stream handler...")
 	log.Println("node status", utils.IS_NODE_HOST)
 
-	var packet = make([]byte, 1500)
-	var packetSize = make([]byte, 2)
+	// Create a buffer stream for non-blocking read and write.
+	rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+
+	go readData(rw)
+	go writeData(rw)
+
+	// stream will stay open until you close it (or the other side closes it).
+}
+
+func writeData(rw *bufio.ReadWriter) {
+	// if !tunEnabled {
+	// 	nodeIface = SetInterfaceUp()
+	// 	tunEnabled = true
+	// }
+	// for {
+	// 	packet := make([]byte, 1420)
+	// 	// packetSize := make([]byte, 2)
+	// 	_, err := nodeIface.Read(packet)
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 	}
+	fmt.Println("Reading from TUN...")
+	// 	fmt.Println(packet)
+	// 	fmt.Println("Writing on the stream...")
+	_, err := rw.WriteString("Hello")
+	if err != nil {
+		// return
+		log.Fatal(err)
+	}
+	// 	err = rw.Flush()
+	// 	if err != nil {
+	// 		return
+	// 	}
+	// }
+}
+
+func readData(rw *bufio.ReadWriter) {
+	packet := make([]byte, 1420)
+	packetSize := make([]byte, 2)
 	for {
 		// Read the incoming packet's size as a binary value.
-		_, err := stream.Read(packetSize)
+		_, err := rw.Read(packetSize)
 		if err != nil {
-			stream.Close()
+			// stream.Close()
 			return
 		}
 
@@ -219,22 +258,25 @@ func streamHandler(stream network.Stream) {
 		// Read in the packet until completion.
 		var plen uint16 = 0
 		for plen < size {
-			tmp, err := stream.Read(packet[plen:size])
+			tmp, err := rw.Read(packet[plen:size])
 			plen += uint16(tmp)
 			if err != nil {
-				stream.Close()
+				// stream.Close()
 				return
 			}
 		}
 
 		if utils.IS_NODE_HOST {
 			fmt.Println("IS A NODE -- DEBUG")
-			fmt.Println(stream)
+			fmt.Println(rw)
 			if !tunEnabled {
 				nodeIface = SetInterfaceUp()
 				tunEnabled = true
 			}
 			fmt.Println("───────────────────── IP packet ─────────────────────")
+			// debug
+			header, _ := ipv4.ParseHeader(packet[:plen])
+			fmt.Printf("Reading IP packet: %+v (%+v)\n", header, err)
 			proto := utils.GetProtocolById(packet[9])
 			fmt.Println("Protocol:\t", proto)
 			src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
@@ -245,9 +287,9 @@ func streamHandler(stream network.Stream) {
 
 			_, err = nodeIface.Write(packet[:size])
 			utils.Check(err)
-			_, err = stream.Write(packet[:size])
-			utils.Check(err)
-			log.Println("writing on stream, size in bytes:", size)
+			// _, err = rw.Write(packet[:size])
+			// utils.Check(err)
+			// log.Println("writing response on stream, size in bytes:", size)
 
 		} else {
 			fmt.Println("IS A CLIENT PEER -- DEBUG")
