@@ -158,10 +158,10 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 
 	ipfsPublicPeer, err := multiaddr.NewMultiaddr("/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb")
 	utils.Check(err)
-	skypierPublicPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
+	// skypierPublicPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
 	utils.Check(err)
 	skypierBootstrapPeers := [...]multiaddr.Multiaddr{
-		skypierPublicPeer,
+		// skypierPublicPeer,
 		ipfsPublicPeer,
 	}
 
@@ -186,7 +186,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 
 func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
 	log.Println("Generating identity...")
-	privKey, err := loadPrivateKey()
+	privKey, err := LoadPrivateKey()
 	utils.Check(err)
 
 	// Find available port for both TCP and UDP
