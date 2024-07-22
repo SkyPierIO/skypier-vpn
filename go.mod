@@ -7,7 +7,6 @@ toolchain go1.22.0
 require (
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
-	github.com/ipfs/go-datastore v0.6.0
 	github.com/libp2p/go-libp2p v0.35.0
 	github.com/libp2p/go-libp2p-kad-dht v0.25.2
 	github.com/mbndr/figlet4go v0.0.0-20190224160619-d6cef5b186ea
@@ -19,6 +18,8 @@ require (
 	github.com/vishvananda/netlink v1.1.0
 	golang.org/x/net v0.26.0
 )
+
+require github.com/ipfs/go-datastore v0.6.0 // indirect
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
@@ -79,7 +80,6 @@ require (
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
-	github.com/libp2p/go-libp2p-core v0.20.1 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.6.3 // indirect
 	github.com/libp2p/go-libp2p-record v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-routing-helpers v0.7.3 // indirect
@@ -139,7 +139,6 @@ require (
 	github.com/quic-go/quic-go v0.44.0 // indirect
 	github.com/quic-go/webtransport-go v0.8.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/songgao/packets v0.0.0-20160404182456-549a10cd4091 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

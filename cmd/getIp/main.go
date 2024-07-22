@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/SkyPierIO/skypier-vpn/pkg/vpn"
@@ -34,9 +35,12 @@ func main() {
 	// Start libp2p node
 	node, dht, err := vpn.StartNode(innerConfig, privKey, "4003", "4003")
 	utils.Check(err)
+	go vpn.DiscoverPeersWithKademlia(ctx, node, dht)
+	fmt.Println("Sleeping for 10 sec to allow the node to discover new peers...")
+	time.Sleep(10 * time.Second)
 
 	// Get the peer ID of the node
-	peerId := "QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb"
+	peerId := "16Uiu2HAmC5dbinw4Ee7vtJPzhafGqbYPLWDemKrSmugisz2HfDEZ"
 	peerIdObj, err := peer.Decode(peerId)
 	utils.Check(err)
 	fmt.Println("\nPeer ID:\t ", peerIdObj)

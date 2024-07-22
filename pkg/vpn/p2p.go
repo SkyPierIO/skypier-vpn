@@ -181,6 +181,9 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	node.SetStreamHandler("/skypier/1.0", streamHandler)
 	log.Println("Stream handler enabled for protocol /skypier/1.0")
 
+	idht.Bootstrap(ctx)
+	idht.RefreshRoutingTable()
+
 	return node, idht, err
 }
 

@@ -65,6 +65,7 @@ func main() {
 
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
+	go vpn.DiscoverPeersWithKademlia(ctx, node, dht)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
@@ -89,6 +90,7 @@ func main() {
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
+	api.GET("/peer/:peerId/info", vpn.GetPeerIPAddresses(node, dht))
 
 	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {
