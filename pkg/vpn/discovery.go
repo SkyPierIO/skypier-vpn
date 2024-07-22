@@ -2,12 +2,10 @@ package vpn
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -17,6 +15,7 @@ import (
 
 // DiscoverPeers performs a general Kademlia DHT discovery for Skypier peers.
 func DiscoverPeersWithKademlia(ctx context.Context, h host.Host, dht *dht.IpfsDHT) {
+	log.Println("Discovering peers with Kademlia DHT...")
 	// Bootstrap the DHT to build its routing table
 	if err := dht.Bootstrap(ctx); err != nil {
 		log.Fatalf("Failed to bootstrap DHT: %v", err)
@@ -60,15 +59,21 @@ func GetPeerIPAddresses(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peer.Decode(peerId)
-		utils.Check(err)
+		if err != nil {
+			log.Printf("[+] discovery error: ", err)
+		}
 		log.Println("\nPeer ID:\t ", peerIdObj)
 
 		pi, err := dht.FindPeer(c, peerIdObj)
-		utils.Check(err)
+		if err != nil {
+			log.Printf("[+] discovery error: ", err)
+		}
 
 		// Connect to the peer ID
 		err = node.Connect(c, pi)
-		utils.Check(err)
+		if err != nil {
+			log.Printf("[+] discovery error: ", err)
+		}
 
 		// Get the peer address
 		peerAddr := node.Peerstore().Addrs(peerIdObj)
@@ -97,16 +102,16 @@ func GetPeerIPAddresses(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			}
 		}
 		/// generate the code for list all addresses in the peerIPAddresses slice
-		for _, v := range peerIPAddresses {
-			isPublic := func() string {
-				if utils.IsPublicIP(v) {
-					return "(public)"
-				} else {
-					return "(private)"
-				}
-			}()
-			fmt.Println("Peer IP address: ", v, isPublic)
-		}
+		// for _, v := range peerIPAddresses {
+		// 	isPublic := func() string {
+		// 		if utils.IsPublicIP(v) {
+		// 			return "(public)"
+		// 		} else {
+		// 			return "(private)"
+		// 		}
+		// 	}()
+		// 	fmt.Println("Peer IP address: ", v, isPublic)
+		// }
 		c.IndentedJSON(200, peerIPAddresses)
 	}
 	return gin.HandlerFunc(fn)
