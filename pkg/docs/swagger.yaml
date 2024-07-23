@@ -89,6 +89,21 @@ paths:
       summary: Get the node nickname
       tags:
       - VPN
+  /peer/{peerId}/info:
+    get:
+      description: Get the IP addresses of a remote peer through the DHT
+      parameters:
+      - description: Peer ID
+        in: path
+        name: peerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Get the IP addresses of a remote peer through the DHT
+      tags:
+      - VPN
   /ping:
     get:
       description: Ping the node locally from the UI

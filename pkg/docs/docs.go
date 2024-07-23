@@ -131,6 +131,28 @@ const docTemplate = `{
                 }
             }
         },
+        "/peer/{peerId}/info": {
+            "get": {
+                "description": "Get the IP addresses of a remote peer through the DHT",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Get the IP addresses of a remote peer through the DHT",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer ID",
+                        "name": "peerId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/ping": {
             "get": {
                 "description": "Ping the node locally from the UI",

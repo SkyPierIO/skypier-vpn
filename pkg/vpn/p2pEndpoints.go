@@ -105,25 +105,27 @@ func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 // @Router       /connect/{peerId} [get]
 func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		addrString := "/p2p/" + c.Param("peerId")
-		dstPeer, err := peerstore.AddrInfoFromString(addrString)
+		peerId := c.Param("peerId")
+		peerIdObj, err := peerstore.Decode(peerId)
 		if err != nil {
+			log.Println("[+] discovery error: ", err)
+		}
+		pi, err := dht.FindPeer(c, peerIdObj)
+		if err != nil {
+			log.Println("[+] discovery error: ", err)
+		}
+
+		if err := node.Connect(c, pi); err != nil {
 			log.Println(err)
 			c.IndentedJSON(200, err)
 			return
 		}
-		log.Println(dstPeer)
-		if err := node.Connect(c, *dstPeer); err != nil {
-			log.Println(err)
-			c.IndentedJSON(200, err)
-			return
-		}
-		log.Println("Connected to the remote peer", dstPeer.ID)
+		log.Println("Connected to the remote peer", pi.ID)
 
 		// we can open a new stream
 		s, err := node.NewStream(
 			context.Background(),
-			dstPeer.ID,
+			pi.ID,
 			"/skypier/1.0",
 		)
 		if err != nil {
@@ -150,7 +152,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				// Write the packet out to the libp2p stream.
 				// If everyting succeeds continue on to the next packet.
 				n, err := s.Write(packet[:plen])
-				fmt.Printf("Connected to the remote node %v, and sent %d bytes. %v\n", dstPeer.ID, n, dstPeer.Addrs)
+				fmt.Printf("Connected to the remote node %v, and sent %d bytes. %v\n", pi.ID, n, pi.Addrs)
 				if err == nil {
 					// debug
 					header, _ := ipv4.ParseHeader(packet[:plen])
