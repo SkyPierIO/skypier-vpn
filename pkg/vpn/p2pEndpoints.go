@@ -107,7 +107,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peerstore.Decode(peerId)
-		if err != nil {
+		if err != nil && utils.IsDebugEnabled() {
 			log.Println("[+] discovery error: ", err)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)

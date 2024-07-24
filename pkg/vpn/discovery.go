@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -38,10 +39,14 @@ func DiscoverPeersWithKademlia(ctx context.Context, h host.Host, dht *dht.IpfsDH
 				if h.Network().Connectedness(pID) != network.Connected {
 					_, err := h.Network().DialPeer(ctx, pID)
 					if err != nil {
-						log.Printf("Failed to connect to peer %s: %v\n", pID.String(), err)
+						if utils.IsDebugEnabled() {
+							log.Printf("Failed to connect to peer %s: %v\n", pID.String(), err)
+						}
 						continue
 					}
-					log.Printf("Discoverd new peer %s\n", pID.String())
+					if utils.IsDebugEnabled() {
+						log.Printf("Discoverd new peer %s\n", pID.String())
+					}
 				}
 			}
 		}
