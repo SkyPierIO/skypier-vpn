@@ -64,17 +64,17 @@ func GetPeerIPAddresses(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peer.Decode(peerId)
-		if err != nil {
+		if err != nil && utils.IsDebugEnabled() {
 			log.Println("[+] discovery error: ", err)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)
-		if err != nil {
+		if err != nil && utils.IsDebugEnabled() {
 			log.Println("[+] discovery error: ", err)
 		}
 
 		// Connect to the peer ID
 		err = node.Connect(c, pi)
-		if err != nil {
+		if err != nil && utils.IsDebugEnabled() {
 			log.Println("[+] discovery error: ", err)
 		}
 

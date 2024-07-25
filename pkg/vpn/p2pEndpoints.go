@@ -5,12 +5,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"net/http"
 	"runtime"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
 	"golang.org/x/net/ipv4"
 )
@@ -21,6 +23,30 @@ type SkypierNode struct {
 	Version         string `json:"version"`
 	OperatingSystem string `json:"os"`
 	// Uptime          time.Duration `json:"uptime"`
+}
+
+// GetConnectedPeersCount     godoc
+// @Summary      Get the ConnectedPeers Count
+// @Description  Get the ConnectedPeers Count
+// @Tags         VPN
+// @Produce      json
+// @Router       /connected_peers_count [get]
+func GetConnectedPeersCount(node host.Host, mydht *dht.IpfsDHT) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		peers := mydht.RoutingTable().ListPeers()
+		connectedPeers := 0
+
+		for _, pID := range peers {
+			if node.Network().Connectedness(pID) == network.Connected {
+				connectedPeers++
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"connected_peers_count": connectedPeers,
+		})
+	}
+	return gin.HandlerFunc(fn)
 }
 
 // GetLocalPeerId     godoc
@@ -90,7 +116,7 @@ func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		type Result struct {
 			Res string `json:"result"`
 		}
-		r := &Result{Res: "Connected to " + addrString}
+		r := &Result{Res: "Address reachable: " + addrString}
 		c.IndentedJSON(200, r)
 	}
 	return gin.HandlerFunc(fn)
@@ -111,7 +137,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			log.Println("[+] discovery error: ", err)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)
-		if err != nil {
+		if err != nil && utils.IsDebugEnabled() {
 			log.Println("[+] discovery error: ", err)
 		}
 

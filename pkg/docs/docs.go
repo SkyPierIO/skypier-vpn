@@ -62,6 +62,19 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/connected_peers_count": {
+            "get": {
+                "description": "Get the ConnectedPeers Count",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Get the ConnectedPeers Count",
+                "responses": {}
+            }
+        },
         "/getConfig": {
             "get": {
                 "description": "Get the content of the configuration file",

@@ -41,6 +41,15 @@ paths:
       summary: Connect to a remote libp2p peer and enable new Stream
       tags:
       - VPN
+  /connected_peers_count:
+    get:
+      description: Get the ConnectedPeers Count
+      produces:
+      - application/json
+      responses: {}
+      summary: Get the ConnectedPeers Count
+      tags:
+      - VPN
   /getConfig:
     get:
       description: Get the content of the configuration file
