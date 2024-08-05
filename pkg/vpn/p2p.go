@@ -213,34 +213,40 @@ func streamHandler(s network.Stream) {
 	go readData(rw)
 	go writeData(rw)
 
+	// Keep the main function running
+	select {}
+
 	// stream will stay open until you close it (or the other side closes it).
 }
 
 func writeData(rw *bufio.ReadWriter) {
-	// if !tunEnabled {
-	// 	nodeIface = SetInterfaceUp()
-	// 	tunEnabled = true
-	// }
-	// for {
-	// 	packet := make([]byte, 1420)
-	// 	// packetSize := make([]byte, 2)
-	// 	_, err := nodeIface.Read(packet)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 	}
-	fmt.Println("Reading from TUN...")
-	// 	fmt.Println(packet)
-	// 	fmt.Println("Writing on the stream...")
-	_, err := rw.WriteString("Hello")
-	if err != nil {
-		// return
-		log.Fatal(err)
+	if !tunEnabled {
+		nodeIface = SetInterfaceUp()
+		tunEnabled = true
 	}
-	// 	err = rw.Flush()
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// }
+	packet := make([]byte, 1420)
+	for {
+		n, err := nodeIface.Read(packet)
+		log.Println("reading from tun interface, size in bytes:", n)
+		if err != nil {
+			log.Printf("Error reading from TUN interface: %v", err)
+			break
+		}
+
+		// Write the packet to the ReadWriter
+		_, err = rw.Write(packet[:n])
+		if err != nil {
+			log.Printf("Error writing to ReadWriter: %v", err)
+			break
+		}
+
+		// Flush the buffer to ensure the data is sent
+		err = rw.Flush()
+		if err != nil {
+			log.Printf("Error flushing ReadWriter: %v", err)
+			break
+		}
+	}
 }
 
 func readData(rw *bufio.ReadWriter) {
@@ -290,6 +296,15 @@ func readData(rw *bufio.ReadWriter) {
 
 			_, err = nodeIface.Write(packet[:size])
 			utils.Check(err)
+			// _, err = rw.WriteString("HELLO")
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+			err = rw.Flush()
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			// _, err = rw.Write(packet[:size])
 			// utils.Check(err)
 			// log.Println("writing response on stream, size in bytes:", size)
