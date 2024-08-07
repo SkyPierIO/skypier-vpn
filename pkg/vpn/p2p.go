@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	b64 "encoding/base64"
@@ -210,8 +211,16 @@ func streamHandler(s network.Stream) {
 	// Create a buffer stream for non-blocking read and write.
 	rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 
-	go readData(rw)
-	go writeData(rw)
+	// Mutex to synchronize access to the TUN interface
+	var mu sync.Mutex
+
+	if !tunEnabled {
+		nodeIface = SetInterfaceUp()
+		tunEnabled = true
+	}
+
+	go readDataFromStream(rw, &mu)
+	go writeDataToStream(rw, &mu)
 
 	// Keep the main function running
 	select {}
@@ -219,21 +228,22 @@ func streamHandler(s network.Stream) {
 	// stream will stay open until you close it (or the other side closes it).
 }
 
-func writeData(rw *bufio.ReadWriter) {
-	if !tunEnabled {
-		nodeIface = SetInterfaceUp()
-		tunEnabled = true
-	}
+func writeDataToStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 	packet := make([]byte, 1420)
 	for {
+		// mu.Lock()
+		// log.Println("mutex locked (reading from tun interface)")
 		n, err := nodeIface.Read(packet)
 		log.Println("reading from tun interface, size in bytes:", n)
+		// mu.Unlock()
+		// log.Println("mutex unlocked")
 		if err != nil {
 			log.Printf("Error reading from TUN interface: %v", err)
 			break
 		}
 
 		// Write the packet to the ReadWriter
+		log.Println("writing the packet to the ReadWriter")
 		_, err = rw.Write(packet[:n])
 		if err != nil {
 			log.Printf("Error writing to ReadWriter: %v", err)
@@ -249,7 +259,7 @@ func writeData(rw *bufio.ReadWriter) {
 	}
 }
 
-func readData(rw *bufio.ReadWriter) {
+func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 	packet := make([]byte, 1420)
 	packetSize := make([]byte, 2)
 	for {
@@ -277,7 +287,6 @@ func readData(rw *bufio.ReadWriter) {
 
 		if utils.IS_NODE_HOST {
 			fmt.Println("IS A NODE -- DEBUG")
-			fmt.Println(rw)
 			if !tunEnabled {
 				nodeIface = SetInterfaceUp()
 				tunEnabled = true
@@ -294,7 +303,11 @@ func readData(rw *bufio.ReadWriter) {
 			fmt.Println("Destination:\t", dst)
 			fmt.Println("─────────────────────────────────────────────────────")
 
+			mu.Lock()
+			log.Println("mutex locked (writing to tun interface)")
 			_, err = nodeIface.Write(packet[:size])
+			mu.Unlock()
+			log.Println("mutex unlocked")
 			utils.Check(err)
 			// _, err = rw.WriteString("HELLO")
 			// if err != nil {
@@ -304,11 +317,6 @@ func readData(rw *bufio.ReadWriter) {
 			if err != nil {
 				log.Fatal(err)
 			}
-
-			// _, err = rw.Write(packet[:size])
-			// utils.Check(err)
-			// log.Println("writing response on stream, size in bytes:", size)
-
 		} else {
 			fmt.Println("IS A CLIENT PEER -- DEBUG")
 		}

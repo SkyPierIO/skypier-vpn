@@ -3,7 +3,9 @@ package vpn
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"runtime"
 
@@ -158,6 +160,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		log.Println(res)
 		c.IndentedJSON(200, Result{Res: res})
 		packet := make([]byte, 1420)
+
+		// loop to read from the TUN interface and write to the libp2p stream.
 		loop := func() {
 			for {
 				plen, err := iface.Read(packet)
@@ -186,7 +190,52 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 			}
 		}
+
+		// loop to read from the libp2p stream and write to the TUN interface.
+		loop2 := func() {
+			for {
+				// Read the packet length from the libp2p stream.
+				var plen uint16
+				err := binary.Read(s, binary.LittleEndian, &plen)
+				if err != nil {
+					// break
+					log.Println(err)
+				}
+
+				// Read the packet from the libp2p stream.
+				packet := make([]byte, plen)
+				_, err = io.ReadFull(s, packet)
+				if err != nil {
+					// break
+					log.Println(err)
+				}
+
+				// Write the packet to the TUN interface.
+				_, err = iface.Write(packet)
+				if err != nil {
+					// break
+					log.Println(err)
+				}
+
+				log.Println("Packet length: ", plen)
+				if len(packet) > 19 {
+					fmt.Println("───────────────────── IP packet ─────────────────────")
+					// debug
+					header, _ := ipv4.ParseHeader(packet[:plen])
+					fmt.Printf("Reading IP packet: %+v (%+v)\n", header, err)
+					proto := utils.GetProtocolById(packet[9])
+					fmt.Println("Protocol:\t", proto)
+					src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
+					fmt.Println("Source:\t\t", src)
+					dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
+					fmt.Println("Destination:\t", dst)
+					fmt.Println("─────────────────────────────────────────────────────")
+				}
+			}
+		}
+
 		go loop()
+		go loop2()
 	}
 	return gin.HandlerFunc(fn)
 }
