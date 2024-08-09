@@ -1,9 +1,9 @@
 package vpn
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -160,6 +160,10 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		log.Println(res)
 		c.IndentedJSON(200, Result{Res: res})
 		packet := make([]byte, 1420)
+		packetSize := make([]byte, 2)
+
+		// Create a buffer stream for non-blocking read and write.
+		rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 
 		// loop to read from the TUN interface and write to the libp2p stream.
 		loop := func() {
@@ -194,20 +198,26 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// loop to read from the libp2p stream and write to the TUN interface.
 		loop2 := func() {
 			for {
-				// Read the packet length from the libp2p stream.
-				var plen uint16
-				err := binary.Read(s, binary.LittleEndian, &plen)
+				// Read the incoming packet's size as a binary value.
+				_, err := rw.Read(packetSize)
 				if err != nil {
-					// break
-					log.Println(err)
+					// stream.Close()
+					return
 				}
 
-				// Read the packet from the libp2p stream.
-				packet := make([]byte, plen)
-				_, err = io.ReadFull(s, packet)
-				if err != nil {
-					// break
-					log.Println(err)
+				// Decode the incoming packet's size from binary.
+				size := binary.LittleEndian.Uint16(packetSize)
+				log.Println("receiving packet of size", size)
+
+				// Read in the packet until completion.
+				var plen uint16 = 0
+				for plen < size {
+					tmp, err := rw.Read(packet[plen:size])
+					plen += uint16(tmp)
+					if err != nil {
+						s.Close()
+						return
+					}
 				}
 
 				// Write the packet to the TUN interface.
@@ -215,6 +225,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				if err != nil {
 					// break
 					log.Println(err)
+					log.Println(packet)
 				}
 
 				log.Println("Packet length: ", plen)

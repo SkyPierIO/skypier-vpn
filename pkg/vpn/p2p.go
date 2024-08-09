@@ -244,11 +244,12 @@ func writeDataToStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 
 		// Write the packet to the ReadWriter
 		log.Println("writing the packet to the ReadWriter")
-		_, err = rw.Write(packet[:n])
+		n, err = rw.Write(packet[:n])
 		if err != nil {
 			log.Printf("Error writing to ReadWriter: %v", err)
 			break
 		}
+		log.Println("writing %n bytes packet to the ReadWriter", n)
 
 		// Flush the buffer to ensure the data is sent
 		err = rw.Flush()
