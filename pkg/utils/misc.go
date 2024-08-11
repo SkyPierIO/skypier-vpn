@@ -13,6 +13,12 @@ func Check(err error) {
 	}
 }
 
+func Display(err error) {
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func IsDebugEnabled() bool {
 	config, err := LoadConfiguration("/etc/skypier/config.json")
 	if err != nil {

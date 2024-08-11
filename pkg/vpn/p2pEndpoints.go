@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"sync"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/songgao/water"
 	"golang.org/x/net/ipv4"
 )
 
@@ -159,16 +161,19 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		res := fmt.Sprintf("Connected to the destination & `%v` VPN interface created.", iface.Name())
 		log.Println(res)
 		c.IndentedJSON(200, Result{Res: res})
-		packet := make([]byte, 1420)
-		packetSize := make([]byte, 2)
 
 		// Create a buffer stream for non-blocking read and write.
 		rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+		// Mutex to synchronize access to the TUN interface
+		var mu sync.Mutex
 
 		// loop to read from the TUN interface and write to the libp2p stream.
 		loop := func() {
+			packet := make([]byte, 1420)
 			for {
+				mu.Lock()
 				plen, err := iface.Read(packet)
+				mu.Unlock()
 				if err != nil {
 					break
 				}
@@ -196,57 +201,121 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		}
 
 		// loop to read from the libp2p stream and write to the TUN interface.
-		loop2 := func() {
-			for {
-				// Read the incoming packet's size as a binary value.
-				_, err := rw.Read(packetSize)
-				if err != nil {
-					// stream.Close()
-					return
-				}
+		// loop2 := func() {
+		// 	respPacket := make([]byte, 1420)
+		// 	packetSize := make([]byte, 2)
+		// 	for {
+		// 		// Read the incoming respPacket's size as a binary value.
+		// 		_, err := rw.Read(packetSize)
+		// 		if err != nil {
+		// 			// stream.Close()
+		// 			return
+		// 		}
 
-				// Decode the incoming packet's size from binary.
-				size := binary.LittleEndian.Uint16(packetSize)
-				log.Println("receiving packet of size", size)
+		// 		// Decode the incoming respPacket's size from binary.
+		// 		size := binary.LittleEndian.Uint16(packetSize)
+		// 		log.Println("receiving respPacket of size", size)
 
-				// Read in the packet until completion.
-				var plen uint16 = 0
-				for plen < size {
-					tmp, err := rw.Read(packet[plen:size])
-					plen += uint16(tmp)
-					if err != nil {
-						s.Close()
-						return
-					}
-				}
+		// 		// Read in the respPacket until completion.
+		// 		var plen uint16 = 0
+		// 		for plen < size {
+		// 			tmp, err := rw.Read(respPacket[plen:size])
+		// 			plen += uint16(tmp)
+		// 			if err != nil {
+		// 				s.Close()
+		// 				return
+		// 			}
+		// 		}
+		// 		log.Println("Packet debug: ", respPacket)
+		// 		log.Println(plen, size, packetSize)
 
-				// Write the packet to the TUN interface.
-				_, err = iface.Write(packet)
-				if err != nil {
-					// break
-					log.Println(err)
-					log.Println(packet)
-				}
+		// 		// Write the respPacket to the TUN interface.
+		// 		if uint16(len(respPacket)) > size {
+		// 			_, err = iface.Write(respPacket[:size])
+		// 			if err != nil {
+		// 				// break
+		// 				log.Println(err)
+		// 				log.Println(respPacket)
+		// 			}
+		// 		} else {
+		// 			log.Println("Size and packet length mismatch")
+		// 		}
 
-				log.Println("Packet length: ", plen)
-				if len(packet) > 19 {
-					fmt.Println("───────────────────── IP packet ─────────────────────")
-					// debug
-					header, _ := ipv4.ParseHeader(packet[:plen])
-					fmt.Printf("Reading IP packet: %+v (%+v)\n", header, err)
-					proto := utils.GetProtocolById(packet[9])
-					fmt.Println("Protocol:\t", proto)
-					src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
-					fmt.Println("Source:\t\t", src)
-					dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
-					fmt.Println("Destination:\t", dst)
-					fmt.Println("─────────────────────────────────────────────────────")
-				}
+		// 		log.Println("Packet length: ", plen)
+		// 		if len(respPacket) > 19 {
+		// 			fmt.Println("───────────────────── IP respPacket ─────────────────────")
+		// 			// debug
+		// 			header, _ := ipv4.ParseHeader(respPacket[:plen])
+		// 			fmt.Printf("Reading IP respPacket: %+v (%+v)\n", header, err)
+		// 			proto := utils.GetProtocolById(respPacket[9])
+		// 			fmt.Println("Protocol:\t", proto)
+		// 			src := net.IPv4(respPacket[12], respPacket[13], respPacket[14], respPacket[15]).String()
+		// 			fmt.Println("Source:\t\t", src)
+		// 			dst := net.IPv4(respPacket[16], respPacket[17], respPacket[18], respPacket[19]).String()
+		// 			fmt.Println("Destination:\t", dst)
+		// 			fmt.Println("─────────────────────────────────────────────────────")
+		// 		}
+		// 	}
+		// }
+
+		go loop()
+		go doRx(rw, &mu, iface)
+	}
+	return gin.HandlerFunc(fn)
+}
+
+func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
+	packet := make([]byte, 1420)
+	packetSize := make([]byte, 2)
+	for {
+		// Read the incoming packet's size as a binary value.
+		n, err := rw.Read(packet)
+		if err != nil {
+			// stream.Close()
+			return
+		} else {
+			log.Println("Read", n, "bytes")
+		}
+
+		if packet[0] == 0x96 {
+			break
+		}
+
+		// Decode the incoming packet's size from binary.
+		size := binary.BigEndian.Uint16(packet[2:4])
+		log.Println("receiving packet of size", size, packet[2:4])
+
+		// Read in the packet until completion.
+		var plen uint16 = 0
+		for plen < size {
+			tmp, err := rw.Read(packet[plen:size])
+			plen += uint16(tmp)
+			if err != nil {
+				// stream.Close()
+				return
 			}
 		}
 
-		go loop()
-		go loop2()
+		fmt.Println("IS A CLIENT -- DEBUG")
+		fmt.Println(plen, size, packetSize, packet, len(packet))
+		fmt.Println("───────────────────── IP packet ─────────────────────")
+		// debug
+		header, _ := ipv4.ParseHeader(packet[:plen])
+		fmt.Printf("Reading IP packet: %+v (%+v)\n", header, err)
+		proto := utils.GetProtocolById(packet[9])
+		fmt.Println("IP Version:\t", packet[0])
+		fmt.Println("Protocol:\t", proto)
+		src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
+		fmt.Println("Source:\t\t", src)
+		dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
+		fmt.Println("Destination:\t", dst)
+		fmt.Println("─────────────────────────────────────────────────────")
+
+		mu.Lock()
+		log.Println("mutex locked (writing to tun interface)")
+		_, err = inter.Write(packet[:size])
+		mu.Unlock()
+		log.Println("mutex unlocked")
+		utils.Check(err)
 	}
-	return gin.HandlerFunc(fn)
 }

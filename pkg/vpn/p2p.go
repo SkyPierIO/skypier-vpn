@@ -220,7 +220,7 @@ func streamHandler(s network.Stream) {
 	}
 
 	go readDataFromStream(rw, &mu)
-	go writeDataToStream(rw, &mu)
+	go writeDataToStream(rw)
 
 	// Keep the main function running
 	select {}
@@ -228,7 +228,7 @@ func streamHandler(s network.Stream) {
 	// stream will stay open until you close it (or the other side closes it).
 }
 
-func writeDataToStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
+func writeDataToStream(rw *bufio.ReadWriter) {
 	packet := make([]byte, 1420)
 	for {
 		// mu.Lock()
@@ -292,11 +292,13 @@ func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 				nodeIface = SetInterfaceUp()
 				tunEnabled = true
 			}
+			fmt.Println(packet)
 			fmt.Println("───────────────────── IP packet ─────────────────────")
 			// debug
 			header, _ := ipv4.ParseHeader(packet[:plen])
 			fmt.Printf("Reading IP packet: %+v (%+v)\n", header, err)
 			proto := utils.GetProtocolById(packet[9])
+			fmt.Println("IP Version:\t", packet[1])
 			fmt.Println("Protocol:\t", proto)
 			src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
 			fmt.Println("Source:\t\t", src)
