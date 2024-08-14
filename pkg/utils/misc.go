@@ -7,6 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	// Define constants for the ANSI escape codes for the colors
+	Red    = "\033[31m"
+	Blue   = "\033[34m"
+	Green  = "\033[32m"
+	Orange = "\033[38;5;208m"
+	Cyan   = "\033[36m"
+	Reset  = "\033[0m"
+)
+
 func Check(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -15,7 +25,7 @@ func Check(err error) {
 
 func Display(err error) {
 	if err != nil {
-		log.Println(err)
+		log.Println(Red, err, Reset)
 	}
 }
 
