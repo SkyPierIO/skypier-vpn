@@ -29,7 +29,7 @@ type SkypierNode struct {
 	// Uptime          time.Duration `json:"uptime"`
 }
 
-const MTUSize = 1420
+const MTUSize = 1472
 
 // GetConnectedPeersCount     godoc
 // @Summary      Get the ConnectedPeers Count
@@ -220,12 +220,15 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 			// stream.Close()
 			return
 		} else {
-			log.Println(utils.Cyan, "Read", n, "bytes", utils.Reset)
+			log.Println(utils.Orange, "Read", n, "bytes", utils.Reset)
 		}
 
 		// Decode the incoming packet's size from binary.
 		size := binary.BigEndian.Uint16(packet[2:4])
-		log.Println(utils.Cyan, "receiving packet of size", size, packet[2:4], utils.Reset)
+		log.Println(utils.Orange, "receiving packet of size", size, packet[2:4], utils.Reset)
+		if size == 0 {
+			log.Println(utils.Red, packet, utils.Reset)
+		}
 
 		// Read in the packet until completion.
 		var plen uint16 = 0
@@ -240,26 +243,26 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 			}
 		}
 
-		log.Println(utils.Cyan, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, packetSize, utils.Reset)
-		log.Println(utils.Cyan, "───────────────────── IP packet ─────────────────────", utils.Reset)
+		log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, packetSize, utils.Reset)
+		log.Println(utils.Orange, "───────────────────── IP packet ─────────────────────", utils.Reset)
 		// debug
 		header, _ := ipv4.ParseHeader(packet[:plen])
-		log.Printf("%vReading IP packet: %+v (%+v)%v\n", utils.Cyan, header, err, utils.Reset)
+		log.Printf("%vReading IP packet: %+v (%+v)%v\n", utils.Orange, header, err, utils.Reset)
 		proto := utils.GetProtocolById(packet[9])
-		log.Println(utils.Cyan, "Packet Size:\t", packet[2:4], utils.Reset)
-		log.Println(utils.Cyan, "Protocol:\t\t", proto, utils.Reset)
+		log.Println(utils.Orange, "Packet Size:\t", packet[2:4], utils.Reset)
+		log.Println(utils.Orange, "Protocol:\t\t", proto, utils.Reset)
 		src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
-		log.Println(utils.Cyan, "Source:\t\t", src, utils.Reset)
+		log.Println(utils.Orange, "Source:\t\t", src, utils.Reset)
 		dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
-		log.Println(utils.Cyan, "Destination:\t", dst, utils.Reset)
-		log.Println(utils.Cyan, "─────────────────────────────────────────────────────", utils.Reset)
+		log.Println(utils.Orange, "Destination:\t", dst, utils.Reset)
+		log.Println(utils.Orange, "─────────────────────────────────────────────────────", utils.Reset)
 
 		if size <= MTUSize && plen != 0 {
 			mu.Lock()
-			log.Println(utils.Cyan, "mutex locked (writing to tun interface)", utils.Reset)
+			log.Println(utils.Orange, "mutex locked (writing to tun interface)", utils.Reset)
 			_, err = inter.Write(packet[:size])
 			mu.Unlock()
-			log.Println(utils.Cyan, "mutex unlocked", utils.Reset)
+			log.Println(utils.Orange, "mutex unlocked", utils.Reset)
 			utils.Check(err)
 		}
 	}

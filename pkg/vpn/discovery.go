@@ -104,7 +104,6 @@ func GetPeerIPAddresses(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				}()
 			}
 		}
-		/// generate the code for list all addresses in the peerIPAddresses slice
 		// for _, v := range peerIPAddresses {
 		// 	isPublic := func() string {
 		// 		if utils.IsPublicIP(v) {

@@ -11,6 +11,7 @@ import (
 
 	b64 "encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/libp2p/go-libp2p"
@@ -229,7 +230,7 @@ func streamHandler(s network.Stream) {
 }
 
 func writeDataToStream(rw *bufio.ReadWriter) {
-	packet := make([]byte, 1420)
+	packet := make([]byte, MTUSize)
 	for {
 		// mu.Lock()
 		// log.Println("mutex locked (reading from tun interface)")
@@ -261,7 +262,7 @@ func writeDataToStream(rw *bufio.ReadWriter) {
 }
 
 func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
-	packet := make([]byte, 1420)
+	packet := make([]byte, MTUSize)
 	packetSize := make([]byte, 2)
 	for {
 		// Read the incoming packet's size as a binary value.
@@ -292,7 +293,7 @@ func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 				nodeIface = SetInterfaceUp()
 				tunEnabled = true
 			}
-			fmt.Println(packet)
+			log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, packetSize, utils.Reset)
 			fmt.Println("───────────────────── IP packet ─────────────────────")
 			// debug
 			header, _ := ipv4.ParseHeader(packet[:plen])
