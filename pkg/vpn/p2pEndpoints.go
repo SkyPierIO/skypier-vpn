@@ -212,7 +212,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 	packet := make([]byte, MTUSize)
-	packetSize := make([]byte, 2)
+	// packetSize := make([]byte, 2)
+	var i int
 	for {
 		// Read the incoming packet's size as a binary value.
 		n, err := rw.Read(packet)
@@ -225,6 +226,8 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 
 		// Decode the incoming packet's size from binary.
 		size := binary.BigEndian.Uint16(packet[2:4])
+		// size := binary.LittleEndian.Uint16(packetSize)
+		// log.Println("receiving packet of size", size)
 		log.Println(utils.Orange, "receiving packet of size", size, packet[2:4], utils.Reset)
 		if size == 0 {
 			log.Println(utils.Red, packet, utils.Reset)
@@ -243,7 +246,7 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 			}
 		}
 
-		log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, packetSize, utils.Reset)
+		log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, utils.Reset)
 		log.Println(utils.Orange, "───────────────────── IP packet ─────────────────────", utils.Reset)
 		// debug
 		header, _ := ipv4.ParseHeader(packet[:plen])
@@ -265,5 +268,7 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 			log.Println(utils.Orange, "mutex unlocked", utils.Reset)
 			utils.Check(err)
 		}
+		log.Println(utils.Orange, i, utils.Reset)
+		i++
 	}
 }

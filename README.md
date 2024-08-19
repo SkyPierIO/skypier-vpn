@@ -13,7 +13,7 @@
 <p align="center">
    A more equitable and scalable decentralized network platform that empowers people the freedom to express and explore anonymously without worry of compromising their privacy or quality of access. 
 </p>
-<p align="center">
+<p align="center"> 
     <a href="https://skypier.io">Official website</a>･
     <a href="https://skypier.io">Twitter/X</a>
 </p>
@@ -22,6 +22,8 @@
 <p align="center">
     <a href="#">
     <img src="https://img.shields.io/github/followers/SkyPierIO" alt="Github followers" />
+    </a>
+    <img src="https://img.shields.io/github/issues-pr/SkyPierIO/skypier-vpn" alt="Github Issues" />
     </a>
     <a href="https://twitter.com/SkypierIO">
         <img src="https://img.shields.io/twitter/follow/SkypierIO" alt="Twitter" />
@@ -33,13 +35,45 @@
 
 <hr>
 
-## Build from sources
+## Introduction
+
+Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to provide secure and private internet access. This project is currently under development and should not be used in production environments for security reasons.
+
+## 🚀 Features
+
+- **Decentralized Network**: No central points of failure, no central server.
+- **Libp2p Integration**: Uses the same network library as Ethereum and various well known Blockchain projects.
+- **Enhanced Security**: Strong encryption and secure communication channels
+- **Privacy**: Ensures user anonymity by routing traffic through nodes hosted by the community all around the world.
+- **Token Gated Service**: We use NFTs for users subscription validity and proof of payment. 
+
+## ⚠️ Disclaimer
+
+> [!IMPORTANT]  
+> This project is under development and should not be used in production environments for security reasons.
+
+## 📦 Installation
+
+### Prerequisites
+
+- Go 1.16 or higher
+- Git
+
+### Build from sources
+
+1. Build the project:
 
 ```bash
-go build -o build/skypier-vpn-node cmd/skypier-vpn-node/main.go
+go build -o skypier-vpn cmd/skypier-vpn/main.go
 ```
 
-## Install pre-built binary
+2. Run the VPN 
+
+```bash
+./skypier-vpn
+```
+
+### Or install pre-built binary
 
 1. Get the latest release for your Operating System [here](https://github.com/SkyPierIO/skypier-vpn/releases)
 2. Run the installation script 
@@ -47,3 +81,41 @@ go build -o build/skypier-vpn-node cmd/skypier-vpn-node/main.go
     ```bash
     sudo ./install.sh
     ```
+
+## 🛠️ Advancec Usage
+
+### Configuration
+
+A configuration file is created at first laucnh. But you can also start with your own configuration. Edit the `config.json` file to set up your VPN configuration. Example:
+
+```json
+{
+    "nickname": "MySkypierNode-Customize-me",
+    "debug": false,
+    "privateKey": "<YOUR-PK>",
+    "advertisePrivateAddresses": false,
+    "swaggerEnabled": false
+}
+```
+
+## 📚 Documentation
+
+For detailed documentation, please refer to the [Wiki](https://github.com/SkyPierIO/skypier-vpn/wiki).
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our CONTRIBUTING.md for guidelines.
+
+## 📧 Contact
+
+For any inquiries, please contact us at [info@skypier.Io](mailto://info@skypier.io).
+
+## 🧑‍💻 Want to hack on libp2p?
+
+[![](https://cdn.rawgit.com/libp2p/community/master/img/contribute.gif)](https://github.com/libp2p/community/blob/master/CONTRIBUTE.md)
+
+## ⭐️ Support
+
+If you find this project useful, please consider giving it a star on GitHub!
+
+

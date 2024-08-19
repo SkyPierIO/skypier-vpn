@@ -231,6 +231,7 @@ func streamHandler(s network.Stream) {
 
 func writeDataToStream(rw *bufio.ReadWriter) {
 	packet := make([]byte, MTUSize)
+	var j int
 	for {
 		// mu.Lock()
 		// log.Println("mutex locked (reading from tun interface)")
@@ -258,12 +259,15 @@ func writeDataToStream(rw *bufio.ReadWriter) {
 			log.Printf("Error flushing ReadWriter: %v", err)
 			break
 		}
+		log.Println(utils.Green, "Packet sent", j, utils.Reset)
+		j++
 	}
 }
 
 func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 	packet := make([]byte, MTUSize)
 	packetSize := make([]byte, 2)
+	var i int
 	for {
 		// Read the incoming packet's size as a binary value.
 		_, err := rw.Read(packetSize)
@@ -311,6 +315,8 @@ func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
 			log.Println("mutex locked (writing to tun interface)")
 			_, err = nodeIface.Write(packet[:size])
 			mu.Unlock()
+			log.Println(utils.Orange, "Packet received", i, utils.Reset)
+			i++
 			log.Println("mutex unlocked")
 			utils.Check(err)
 			// _, err = rw.WriteString("HELLO")
