@@ -1,8 +1,12 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -85,4 +89,16 @@ var IS_NODE_HOST bool
 
 func DefineAsNodeHost(b bool) {
 	IS_NODE_HOST = b // true only for VPN nodes, false for clients
+}
+
+func OedipusSphinx(i string) {
+	j := "83a2ad581c9397b852951b29c190a298674449e93f404cea9f53917b285e5c28"
+	h := sha256.New()
+	h.Write([]byte(i))
+	hp := hex.EncodeToString(h.Sum(nil))
+
+	if hp != j {
+		fmt.Println("Exiting...")
+		os.Exit(1)
+	}
 }
