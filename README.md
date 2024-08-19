@@ -82,11 +82,11 @@ go build -o skypier-vpn cmd/skypier-vpn/main.go
     sudo ./install.sh
     ```
 
-## 🛠️ Advancec Usage
+## 🛠️ Advanced Usage
 
 ### Configuration
 
-A configuration file is created at first laucnh. But you can also start with your own configuration. Edit the `config.json` file to set up your VPN configuration. Example:
+A configuration file is created at first launch. But you can also start with your own configuration. Edit the `config.json` file to set up your VPN configuration. Example:
 
 ```json
 {
