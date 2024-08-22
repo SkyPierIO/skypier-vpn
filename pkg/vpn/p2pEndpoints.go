@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"runtime"
 	"sync"
@@ -172,6 +171,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 		// loop to read from the TUN interface and write to the libp2p stream.
 		doTx := func() {
+			var i int
 			packet := make([]byte, MTUSize)
 			for {
 				mu.Lock()
@@ -193,6 +193,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 						// debug
 						header, _ := ipv4.ParseHeader(packet[:plen])
 						log.Printf("%vSending to remote: %+v (%+v)%v\n", utils.Green, header, err, utils.Reset)
+						log.Println(utils.Cyan, "Packet received", i, utils.Reset)
+						i++
 						continue
 					}
 				}
@@ -210,7 +212,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
+func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inet *water.Interface) {
 	packet := make([]byte, MTUSize)
 	// packetSize := make([]byte, 2)
 	var i int
@@ -225,12 +227,17 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 		}
 
 		// Decode the incoming packet's size from binary.
+		if len(packet) < 4 {
+			log.Fatal("packet too short")
+		}
 		size := binary.BigEndian.Uint16(packet[2:4])
 		// size := binary.LittleEndian.Uint16(packetSize)
 		// log.Println("receiving packet of size", size)
 		log.Println(utils.Orange, "receiving packet of size", size, packet[2:4], utils.Reset)
 		if size == 0 {
 			log.Println(utils.Red, packet, utils.Reset)
+			log.Println(utils.Red, hex.Dump(packet), utils.Reset)
+			utils.PrettyPrintIPHeader(packet, "ERROR")
 		}
 
 		// Read in the packet until completion.
@@ -247,28 +254,16 @@ func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inter *water.Interface) {
 		}
 
 		log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, utils.Reset)
-		log.Println(utils.Orange, "───────────────────── IP packet ─────────────────────", utils.Reset)
-		// debug
-		header, _ := ipv4.ParseHeader(packet[:plen])
-		log.Printf("%vReading IP packet: %+v (%+v)%v\n", utils.Orange, header, err, utils.Reset)
-		proto := utils.GetProtocolById(packet[9])
-		log.Println(utils.Orange, "Packet Size:\t", packet[2:4], utils.Reset)
-		log.Println(utils.Orange, "Protocol:\t\t", proto, utils.Reset)
-		src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
-		log.Println(utils.Orange, "Source:\t\t", src, utils.Reset)
-		dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
-		log.Println(utils.Orange, "Destination:\t", dst, utils.Reset)
-		log.Println(utils.Orange, "─────────────────────────────────────────────────────", utils.Reset)
-
+		utils.PrettyPrintIPHeader(packet, "DEBUG")
 		if size <= MTUSize && plen != 0 {
 			mu.Lock()
 			log.Println(utils.Orange, "mutex locked (writing to tun interface)", utils.Reset)
-			_, err = inter.Write(packet[:size])
+			_, err = inet.Write(packet[:size])
 			mu.Unlock()
 			log.Println(utils.Orange, "mutex unlocked", utils.Reset)
 			utils.Check(err)
 		}
-		log.Println(utils.Orange, i, utils.Reset)
+		log.Println(utils.Orange, "Packet written", i, utils.Reset)
 		i++
 	}
 }
