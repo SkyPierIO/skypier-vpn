@@ -13,6 +13,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.12.4
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/swaggo/files v1.0.1
+	github.com/swaggo/files/v2 v2.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.3
 	github.com/vishvananda/netlink v1.3.0
