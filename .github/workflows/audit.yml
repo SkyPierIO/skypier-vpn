@@ -49,10 +49,10 @@ jobs:
       matrix:
         arch: ['amd64', '386', 'arm64']
         # os: ['linux', 'windows', 'darwin']
-        os: ['linux', 'darwin']
-        exclude:
-          - arch: 386
-            os: darwin
+        os: ['linux']
+        # exclude:
+        #   - arch: 386
+        #     os: darwin
 
     steps:
       - uses: actions/checkout@v4
