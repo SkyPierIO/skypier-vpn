@@ -1,14 +1,11 @@
 package vpn
 
 import (
-	"bufio"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"runtime"
-	"sync"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -16,8 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
-	"github.com/songgao/water"
-	"golang.org/x/net/ipv4"
 )
 
 type SkypierNode struct {
@@ -164,106 +159,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		log.Println(res)
 		c.IndentedJSON(200, Result{Res: res})
 
-		// Create a buffer stream for non-blocking read and write.
-		rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-		// Mutex to synchronize access to the TUN interface
-		var mu sync.Mutex
-
-		// loop to read from the TUN interface and write to the libp2p stream.
-		doTx := func() {
-			var i int
-			packet := make([]byte, MTUSize)
-			for {
-				mu.Lock()
-				plen, err := iface.Read(packet)
-				mu.Unlock()
-				if err != nil {
-					break
-				}
-
-				// Write out the packet's length to the libp2p stream to ensure
-				// we know the full size of the packet at the other end.
-				err = binary.Write(s, binary.LittleEndian, uint16(plen))
-				if err == nil {
-					// Write the packet out to the libp2p stream.
-					// If everyting succeeds continue on to the next packet.
-					n, err := s.Write(packet[:plen])
-					log.Printf("%vSent %d bytes to the remote node %v%v%v\n", utils.Green, n, pi.ID, pi.Addrs, utils.Reset)
-					if err == nil {
-						// debug
-						header, _ := ipv4.ParseHeader(packet[:plen])
-						log.Printf("%vSending to remote: %+v (%+v)%v\n", utils.Green, header, err, utils.Reset)
-						log.Println(utils.Cyan, "Packet received", i, utils.Reset)
-						i++
-						continue
-					}
-				}
-				// If we encounter an error when writing to a stream we should
-				// close that stream and delete it from the active stream map.
-				s.Close()
-
-			}
-		}
-
-		// Start the loops in 2 separated goroutines.
-		go doTx()
-		go doRx(rw, &mu, iface)
+		// Start the loops Rx/Tx in 2 separated goroutines.
+		go io.Copy(s, iface)
+		go io.Copy(iface, s)
 	}
 	return gin.HandlerFunc(fn)
-}
-
-func doRx(rw *bufio.ReadWriter, mu *sync.Mutex, inet *water.Interface) {
-	packet := make([]byte, MTUSize)
-	// packetSize := make([]byte, 2)
-	var i int
-	for {
-		// Read the incoming packet's size as a binary value.
-		n, err := rw.Read(packet)
-		if err != nil {
-			// stream.Close()
-			return
-		} else {
-			log.Println(utils.Orange, "Read", n, "bytes", utils.Reset)
-		}
-
-		// Decode the incoming packet's size from binary.
-		if len(packet) < 4 {
-			log.Fatal("packet too short")
-		}
-		size := binary.BigEndian.Uint16(packet[2:4])
-		// size := binary.LittleEndian.Uint16(packetSize)
-		// log.Println("receiving packet of size", size)
-		log.Println(utils.Orange, "receiving packet of size", size, packet[2:4], utils.Reset)
-		if size == 0 {
-			log.Println(utils.Red, packet, utils.Reset)
-			log.Println(utils.Red, hex.Dump(packet), utils.Reset)
-			utils.PrettyPrintIPHeader(packet, "ERROR")
-		}
-
-		// Read in the packet until completion.
-		var plen uint16 = 0
-		if size <= MTUSize {
-			for plen < size {
-				tmp, err := rw.Read(packet[plen:size])
-				plen += uint16(tmp)
-				if err != nil {
-					// stream.Close()
-					return
-				}
-			}
-		}
-
-		log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, utils.Reset)
-		utils.PrettyPrintIPHeader(packet, "DEBUG")
-		if size <= MTUSize && plen != 0 {
-			mu.Lock()
-			log.Println(utils.Orange, "mutex locked (writing to tun interface)", utils.Reset)
-			_, err = inet.Write(packet[:size])
-			mu.Unlock()
-			log.Println(utils.Orange, "mutex unlocked", utils.Reset)
-			utils.Check(err)
-		}
-		log.Println(utils.Orange, "Packet written", i, utils.Reset)
-		i++
-	}
 }

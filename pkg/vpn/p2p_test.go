@@ -22,7 +22,7 @@ func TestP2PNode(t *testing.T) {
 
 	// Mock configurations
 	tcpPort := "4002"
-	pk := generateMockPrivateKey() // Implement this function to generate a mock private key
+	pk := generateMockPrivateKey()
 	connmgr, _ := connmgr.NewConnManager(100, 400, connmgr.WithGracePeriod(0))
 	resourceManager, _ := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 
@@ -77,8 +77,6 @@ func hasTransport(h host.Host, addr string) bool {
 
 // generateMockPrivateKey generates a mock private key for testing
 func generateMockPrivateKey() crypto.PrivKey {
-	// Implement this function to generate a mock private key
-	// For example, you can use the libp2p crypto package to generate a key
 	pk, _, _ := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	return pk
 }

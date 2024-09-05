@@ -1,17 +1,12 @@
 package vpn
 
 import (
-	"bufio"
 	"context"
-	"fmt"
+	"io"
 	"log"
-	"net"
-	"sync"
 	"time"
 
 	b64 "encoding/base64"
-	"encoding/binary"
-	"encoding/hex"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/libp2p/go-libp2p"
@@ -29,7 +24,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/songgao/water"
-	"golang.org/x/net/ipv4"
 )
 
 var (
@@ -139,20 +133,6 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		log.Println(sEnc)
 	}
 
-	// // Start a DHT, for use in peer discovery. We can't just make a new DHT client
-	// // because we want each peer to maintain its own local copy of the DHT, so
-	// // that the bootstrapping node of the DHT can go down without inhibitting
-	// // future peer discovery.
-	// //
-	// // Use dht.NewDHTClient if you don't want our DHT to be requested
-	// newDHT := dht.NewDHT(ctx, node, datastore.NewMapDatastore())
-
-	// // Bootstrap the DHT. In the default configuration, this spawns a Background
-	// // thread that will refresh the peer table every five minutes.
-	// if err = newDHT.Bootstrap(ctx); err != nil {
-	// 	log.Fatal(err)
-	// }
-
 	// Dev test bootstrap node (NL)
 	// TODO add more bootstrap nodes for Skypier in other countries to avoid single point of failure
 	// TODO add some bootstrap nodes with TCP && QUIC
@@ -206,129 +186,19 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 }
 
 func streamHandler(s network.Stream) {
-	log.Println("Entered the stream handler...")
+	log.Println("Starting the stream handler...")
 	log.Println("node status", utils.IS_NODE_HOST)
-
-	// Create a buffer stream for non-blocking read and write.
-	rw := bufio.NewReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-
-	// Mutex to synchronize access to the TUN interface
-	var mu sync.Mutex
 
 	if !tunEnabled {
 		nodeIface = SetInterfaceUp()
 		tunEnabled = true
 	}
 
-	go readDataFromStream(rw, &mu)
-	go writeDataToStream(rw)
+	go io.Copy(s, nodeIface) // Rx
+	go io.Copy(nodeIface, s) // Tx
 
+	// stream will stay open until you close it (or the other side closes it).
 	// Keep the main function running
 	select {}
 
-	// stream will stay open until you close it (or the other side closes it).
-}
-
-func writeDataToStream(rw *bufio.ReadWriter) {
-	packet := make([]byte, MTUSize)
-	var j int
-	for {
-		// mu.Lock()
-		// log.Println("mutex locked (reading from tun interface)")
-		n, err := nodeIface.Read(packet)
-		log.Println("reading from tun interface, size in bytes:", n)
-		// mu.Unlock()
-		// log.Println("mutex unlocked")
-		if err != nil {
-			log.Printf("Error reading from TUN interface: %v", err)
-			break
-		}
-
-		// Write the packet to the ReadWriter
-		log.Println("writing the packet to the ReadWriter")
-		n, err = rw.Write(packet[:n])
-		if err != nil {
-			log.Printf("Error writing to ReadWriter: %v", err)
-			break
-		}
-		log.Println("writing %n bytes packet to the ReadWriter", n)
-
-		// Flush the buffer to ensure the data is sent
-		err = rw.Flush()
-		if err != nil {
-			log.Printf("Error flushing ReadWriter: %v", err)
-			break
-		}
-		log.Println(utils.Green, "Packet sent", j, utils.Reset)
-		j++
-	}
-}
-
-func readDataFromStream(rw *bufio.ReadWriter, mu *sync.Mutex) {
-	packet := make([]byte, MTUSize)
-	packetSize := make([]byte, 2)
-	var i int
-	for {
-		// Read the incoming packet's size as a binary value.
-		_, err := rw.Read(packetSize)
-		if err != nil {
-			// stream.Close()
-			return
-		}
-
-		// Decode the incoming packet's size from binary.
-		size := binary.LittleEndian.Uint16(packetSize)
-		log.Println("receiving packet of size", size)
-
-		// Read in the packet until completion.
-		var plen uint16 = 0
-		for plen < size {
-			tmp, err := rw.Read(packet[plen:size])
-			plen += uint16(tmp)
-			if err != nil {
-				// stream.Close()
-				return
-			}
-		}
-
-		if utils.IS_NODE_HOST {
-			fmt.Println("IS A NODE -- DEBUG")
-			if !tunEnabled {
-				nodeIface = SetInterfaceUp()
-				tunEnabled = true
-			}
-			log.Println(utils.Orange, "\n"+hex.Dump(packet[:plen]), packet[:plen], plen, size, packetSize, utils.Reset)
-			fmt.Println("───────────────────── IP packet ─────────────────────")
-			// debug
-			header, _ := ipv4.ParseHeader(packet[:plen])
-			fmt.Printf("Reading IP packet: %+v (%+v)\n", header, err)
-			proto := utils.GetProtocolById(packet[9])
-			fmt.Println("IP Version:\t", packet[1])
-			fmt.Println("Protocol:\t", proto)
-			src := net.IPv4(packet[12], packet[13], packet[14], packet[15]).String()
-			fmt.Println("Source:\t\t", src)
-			dst := net.IPv4(packet[16], packet[17], packet[18], packet[19]).String()
-			fmt.Println("Destination:\t", dst)
-			fmt.Println("─────────────────────────────────────────────────────")
-
-			mu.Lock()
-			log.Println("mutex locked (writing to tun interface)")
-			_, err = nodeIface.Write(packet[:size])
-			mu.Unlock()
-			log.Println(utils.Orange, "Packet received", i, utils.Reset)
-			i++
-			log.Println("mutex unlocked")
-			utils.Check(err)
-			// _, err = rw.WriteString("HELLO")
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			err = rw.Flush()
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			fmt.Println("IS A CLIENT PEER -- DEBUG")
-		}
-	}
 }
