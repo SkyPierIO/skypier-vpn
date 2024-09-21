@@ -20,6 +20,7 @@
 # Go workspace file
 go.work
 
+wip
 *WIP*
 build/*
 config.json
