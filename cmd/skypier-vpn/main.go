@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -39,10 +38,10 @@ import (
 // @externalDocs.url          https://swagger.io/resources/open-api/
 func main() {
 
-	var p string
-	fmt.Print("Unlock the app: ")
-	fmt.Scanln(&p)
-	utils.OedipusSphinx(p)
+	// var p string
+	// fmt.Print("Unlock the app: ")
+	// fmt.Scanln(&p)
+	// utils.OedipusSphinx(p)
 
 	// Catch SIGINT when Ctrl+C is pressed, and exit gracefully
 	c := make(chan os.Signal, 1)

@@ -8,7 +8,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-var interfaceName = "skypier0"
+var interfaceName = "utun8"
 
 func SetInterfaceUp() *water.Interface {
 	config := water.Config{
@@ -34,6 +34,21 @@ func SetInterfaceUp() *water.Interface {
 	}
 	netlink.AddrAdd(pierIface, addr)
 	netlink.LinkSetUp(pierIface)
+	
+	// if !utils.IS_NODE_HOST {
+	// 	// Add default IP route
+	// 	defaultRoute := &netlink.Route{
+		// 		Dst:       nil,
+	// 		Gw:        net.ParseIP("10.1.1.2"),
+	// 		LinkIndex: pierIface.Attrs().Index,
+	// 		Protocol:  0,  // Set the protocol to static
+	// 		Priority:  50, // Set the priority to 50
+	// 	}
+	// 	err = netlink.RouteAdd(defaultRoute)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }
 
 	return iface
 }

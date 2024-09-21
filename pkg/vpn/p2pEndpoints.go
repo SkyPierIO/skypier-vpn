@@ -20,6 +20,7 @@ type SkypierNode struct {
 	Nickname        string `json:"nickname,omitempty"`
 	Version         string `json:"version"`
 	OperatingSystem string `json:"os"`
+	Status          string `json:"status"`
 	// Uptime          time.Duration `json:"uptime"`
 }
 
@@ -83,6 +84,7 @@ func GetLocalPeerDetails(node host.Host) gin.HandlerFunc {
 			Nickname:        config.Nickname,
 			Version:         "v0.0.1",
 			OperatingSystem: runtime.GOOS,
+			Status:          "TestStatus",
 		}
 
 		c.IndentedJSON(200, skypierNode)
@@ -162,6 +164,33 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Start the loops Rx/Tx in 2 separated goroutines.
 		go io.Copy(s, iface)
 		go io.Copy(iface, s)
+
+		/////////////////////////////////
+		// // Create an error channel
+		// errCh := make(chan error, 1)
+
+		// // Start the goroutine with error handling
+		// go func() {
+		// 	if _, err := io.Copy(s, iface); err != nil {
+		// 		errCh <- err
+		// 		return
+		// 	}
+		// 	errCh <- nil
+		// }()
+
+		// go func() {
+		// 	if _, err := io.Copy(iface, s); err != nil {
+		// 		errCh <- err
+		// 		return
+		// 	}
+		// 	errCh <- nil
+		// }()
+
+		// // Handle the error
+		// if err := <-errCh; err != nil {
+		// 	log.Printf("Error copying data: %v", err)
+		// }
+		/////////////////////////////////
 	}
 	return gin.HandlerFunc(fn)
 }
