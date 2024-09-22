@@ -91,6 +91,7 @@ func main() {
 	api.GET("/id", vpn.GetLocalPeerId(node))
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
 	api.GET("/ping", utils.Ping)
+	api.GET("/status", vpn.GetVPNStatus)
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
