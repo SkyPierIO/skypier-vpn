@@ -2,7 +2,7 @@ module github.com/SkyPierIO/skypier-vpn
 
 go 1.22
 
-toolchain go1.23.1
+toolchain go1.23.2
 
 require (
 	github.com/gin-contrib/cors v1.7.2
