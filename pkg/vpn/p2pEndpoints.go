@@ -162,34 +162,40 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		c.IndentedJSON(200, Result{Res: res})
 
 		// Start the loops Rx/Tx in 2 separated goroutines.
-		go io.Copy(s, iface)
-		go io.Copy(iface, s)
+		// go io.Copy(s, iface)
+		// go io.Copy(iface, s)
 
 		/////////////////////////////////
-		// // Create an error channel
-		// errCh := make(chan error, 1)
+		// Create an error channel
+		errCh := make(chan error, 1)
 
-		// // Start the goroutine with error handling
-		// go func() {
-		// 	if _, err := io.Copy(s, iface); err != nil {
-		// 		errCh <- err
-		// 		return
-		// 	}
-		// 	errCh <- nil
-		// }()
+		// Start the goroutine with error handling
+		go func() {
+			n, err := io.Copy(s, iface)
+			if err != nil {
+				log.Printf("📡📡📡 %d bytes copied from iface to stream", n)
+				errCh <- err
+				// return
+			}
+			log.Printf("📡📡📡 %d bytes copied from iface to stream", n)
+			errCh <- nil
+		}()
 
-		// go func() {
-		// 	if _, err := io.Copy(iface, s); err != nil {
-		// 		errCh <- err
-		// 		return
-		// 	}
-		// 	errCh <- nil
-		// }()
+		go func() {
+			n, err := io.Copy(iface, s)
+			if err != nil {
+				log.Printf("📡📡📡 %d bytes copied from stream to iface", n)
+				errCh <- err
+				// return
+			}
+			log.Printf("📡📡📡 %d bytes copied from stream to iface", n)
+			errCh <- nil
+		}()
 
-		// // Handle the error
-		// if err := <-errCh; err != nil {
-		// 	log.Printf("Error copying data: %v", err)
-		// }
+		// Handle the error
+		if err := <-errCh; err != nil {
+			log.Printf("🚨🚨🚨 Error copying data: %v", err)
+		}
 		/////////////////////////////////
 	}
 	return gin.HandlerFunc(fn)

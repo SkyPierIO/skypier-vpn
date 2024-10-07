@@ -194,11 +194,42 @@ func streamHandler(s network.Stream) {
 		tunEnabled = true
 	}
 
-	go io.Copy(s, nodeIface) // Rx
-	go io.Copy(nodeIface, s) // Tx
+	// go io.Copy(s, nodeIface) // Rx
+	// go io.Copy(nodeIface, s) // Tx
+
+	// Create an error channel
+	errCh := make(chan error, 1)
+
+	// Start the goroutine with error handling
+	go func() {
+		n, err := io.Copy(s, nodeIface)
+		if err != nil {
+			log.Printf("📡📡📡 %d bytes copied from nodeIface to stream", n)
+			errCh <- err
+			// return
+		}
+		log.Printf("📡📡📡 %d bytes copied from nodeIface to stream", n)
+		errCh <- nil
+	}()
+
+	go func() {
+		n, err := io.Copy(nodeIface, s)
+		if err != nil {
+			log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
+			errCh <- err
+			// return
+		}
+		log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
+		errCh <- nil
+	}()
+
+	// Handle the error
+	if err := <-errCh; err != nil {
+		log.Printf("🚨🚨🚨 Error copying data: %v", err)
+	}
 
 	// stream will stay open until you close it (or the other side closes it).
 	// Keep the main function running
-	select {}
+	// select {}
 
 }
