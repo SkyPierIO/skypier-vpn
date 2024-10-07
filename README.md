@@ -52,11 +52,17 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 > [!IMPORTANT]  
 > This project is under development and should not be used in production environments for security reasons.
 
+## 📷 UI Screenshot
+
+| Light Theme   | Dark Theme |
+| ------------- | ------------- |
+| ![light](https://aqua-abstract-trout-227.mypinata.cloud/ipfs/QmYv5V5xQbXXXYVsGLMDkyNhjWxhb6jyFTFLsivKxPraiw)  | ![dark](https://aqua-abstract-trout-227.mypinata.cloud/ipfs/QmdyqxuPJJwh4K2L7mdSV6hbbPmgA16Whdpp1ygdMSwQEm)  |
+
 ## 📦 Installation
 
 ### Prerequisites
 
-- Go 1.16 or higher
+- Go 1.23 or higher
 - Git
 
 ### Build from sources
@@ -64,6 +70,10 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 1. Build the project:
 
 ```bash
+# Get the React frontend Git Submodule
+git submodule update --remote
+
+# Build the binary with the embeded UI / Router
 go build -o skypier-vpn cmd/skypier-vpn/main.go
 ```
 
