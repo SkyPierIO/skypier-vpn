@@ -61,9 +61,17 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	defer cancel()
 
 	// Connection manager - Load Balancer
+	// ----------------------------------
+	// NewConnManager creates a new BasicConnMgr with
+	// the provided params: lo and hi are watermarks
+	// governing the number of connections that'll be
+	// maintained. When the peer count exceeds the
+	// 'high watermark', as many peers will be pruned
+	// (and their connections terminated) until
+	// 'low watermark' peers remain.
 	connmgr, err := connmgr.NewConnManager(
-		100,  // Lowwater
-		8000, // HighWater,
+		10, // Lowwater
+		30, // HighWater
 		connmgr.WithGracePeriod(time.Minute),
 	)
 	utils.Check(err)
@@ -88,6 +96,9 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 
 	// TODO add a cli/config option to prevent private IP advertising
 	node, err := libp2p.New(
+		// Let's prevent our peer from having too many
+		// connections by attaching a connection manager.
+		libp2p.ConnectionManager(connmgr),
 		// Multiple listen addresses
 		libp2p.ListenAddrStrings(
 			// "/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC
@@ -108,19 +119,18 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		libp2p.Transport(quic.NewTransport),
 		// support default TCP transport
 		libp2p.Transport(tcp.NewTCPTransport),
-		// Let's prevent our peer from having too many
-		// connections by attaching a connection manager.
-		libp2p.ConnectionManager(connmgr),
 		// Attempt to open ports using uPNP for NATed hosts.
 		libp2p.NATPortMap(),
 		// Let this host use the DHT to find other hosts
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			// var dstore datastore.Batching
+			// idht = dht.NewDHTClient(ctx, h, dstore)
 			idht, err = dht.New(ctx, h)
 			return idht, err
 		}),
 		// add monitoring and force to close old streams
 		libp2p.ResourceManager(resourceManager),
-		libp2p.FallbackDefaults,
+		// libp2p.FallbackDefaults,
 		libp2p.Ping(true),
 	)
 	utils.Check(err)
@@ -197,39 +207,37 @@ func streamHandler(s network.Stream) {
 	// go io.Copy(s, nodeIface) // Rx
 	// go io.Copy(nodeIface, s) // Tx
 
-	// Create an error channel
-	errCh := make(chan error, 1)
-
 	// Start the goroutine with error handling
 	go func() {
-		n, err := io.Copy(s, nodeIface)
-		if err != nil {
+		for {
+			log.Println("🛰️🛰️🛰️")
+			n, err := io.Copy(s, nodeIface)
 			log.Printf("📡📡📡 %d bytes copied from nodeIface to stream", n)
-			errCh <- err
-			// return
+			if err != nil {
+				log.Printf("🚨🚨🚨 Error copying data: %v", err)
+				if err.Error() == "stream reset" {
+					return
+				}
+			}
 		}
-		log.Printf("📡📡📡 %d bytes copied from nodeIface to stream", n)
-		errCh <- nil
 	}()
 
 	go func() {
-		n, err := io.Copy(nodeIface, s)
-		if err != nil {
+		for {
+			log.Println("🛰️🛰️🛰️")
+			n, err := io.Copy(nodeIface, s)
 			log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
-			errCh <- err
-			// return
+			if err != nil {
+				log.Printf("🚨🚨🚨 Error copying data: %v", err)
+				if err.Error() == "stream reset" {
+					return
+				}
+			}
 		}
-		log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
-		errCh <- nil
 	}()
-
-	// Handle the error
-	if err := <-errCh; err != nil {
-		log.Printf("🚨🚨🚨 Error copying data: %v", err)
-	}
 
 	// stream will stay open until you close it (or the other side closes it).
 	// Keep the main function running
-	// select {}
+	select {}
 
 }

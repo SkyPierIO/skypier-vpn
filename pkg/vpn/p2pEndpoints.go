@@ -136,11 +136,11 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peerstore.Decode(peerId)
 		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] discovery error: ", err)
+			log.Println("[+] Connection error: ", err)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)
 		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] discovery error: ", err)
+			log.Println("[+] Connection error: ", err)
 		}
 
 		if err := node.Connect(c, pi); err != nil {
@@ -166,37 +166,34 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// go io.Copy(iface, s)
 
 		/////////////////////////////////
-		// Create an error channel
-		errCh := make(chan error, 1)
-
 		// Start the goroutine with error handling
 		go func() {
-			n, err := io.Copy(s, iface)
-			if err != nil {
+			for {
+				log.Println("🛰️🛰️🛰️")
+				n, err := io.Copy(s, iface)
 				log.Printf("📡📡📡 %d bytes copied from iface to stream", n)
-				errCh <- err
-				// return
+				if err != nil {
+					log.Printf("🚨🚨🚨 Error copying data: %v", err)
+					if err.Error() == "stream reset" {
+						return
+					}
+				}
 			}
-			log.Printf("📡📡📡 %d bytes copied from iface to stream", n)
-			errCh <- nil
 		}()
 
 		go func() {
-			n, err := io.Copy(iface, s)
-			if err != nil {
+			for {
+				log.Println("🛰️🛰️🛰️")
+				n, err := io.Copy(iface, s)
 				log.Printf("📡📡📡 %d bytes copied from stream to iface", n)
-				errCh <- err
-				// return
+				if err != nil {
+					log.Printf("🚨🚨🚨 Error copying data: %v", err)
+					if err.Error() == "stream reset" {
+						return
+					}
+				}
 			}
-			log.Printf("📡📡📡 %d bytes copied from stream to iface", n)
-			errCh <- nil
 		}()
-
-		// Handle the error
-		if err := <-errCh; err != nil {
-			log.Printf("🚨🚨🚨 Error copying data: %v", err)
-		}
-		/////////////////////////////////
 	}
 	return gin.HandlerFunc(fn)
 }
