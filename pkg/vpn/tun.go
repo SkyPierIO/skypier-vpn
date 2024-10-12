@@ -8,13 +8,13 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-var interfaceName = "utun8"
+var InterfaceName = "utun8"
 
 func SetInterfaceUp() *water.Interface {
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
-	config.Name = interfaceName
+	config.Name = InterfaceName
 
 	// Create a new TUN/TAP interface using config.
 	iface, err := water.New(config)
@@ -25,7 +25,7 @@ func SetInterfaceUp() *water.Interface {
 	log.Println("Set TUN interface up")
 
 	// Configure the network interface
-	pierIface, _ := netlink.LinkByName(interfaceName)
+	pierIface, _ := netlink.LinkByName(InterfaceName)
 	var addr *netlink.Addr
 	if utils.IS_NODE_HOST {
 		addr, _ = netlink.ParseAddr("10.1.1.2/24") // TODO remove static IP
@@ -34,11 +34,11 @@ func SetInterfaceUp() *water.Interface {
 	}
 	netlink.AddrAdd(pierIface, addr)
 	netlink.LinkSetUp(pierIface)
-	
+
 	// if !utils.IS_NODE_HOST {
 	// 	// Add default IP route
 	// 	defaultRoute := &netlink.Route{
-		// 		Dst:       nil,
+	// 		Dst:       nil,
 	// 		Gw:        net.ParseIP("10.1.1.2"),
 	// 		LinkIndex: pierIface.Attrs().Index,
 	// 		Protocol:  0,  // Set the protocol to static
@@ -54,7 +54,7 @@ func SetInterfaceUp() *water.Interface {
 }
 
 func SetInterfaceDown() error {
-	link, err := netlink.LinkByName(interfaceName)
+	link, err := netlink.LinkByName(InterfaceName)
 	if err != nil {
 		return err
 	}

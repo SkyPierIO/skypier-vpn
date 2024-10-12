@@ -70,8 +70,8 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// (and their connections terminated) until
 	// 'low watermark' peers remain.
 	connmgr, err := connmgr.NewConnManager(
-		10, // Lowwater
-		30, // HighWater
+		5, // Lowwater
+		20, // HighWater
 		connmgr.WithGracePeriod(time.Minute),
 	)
 	utils.Check(err)

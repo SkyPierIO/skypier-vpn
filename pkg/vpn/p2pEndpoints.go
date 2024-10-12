@@ -194,6 +194,10 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				}
 			}
 		}()
+
+		if err := utils.AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
+			log.Fatalf("Error adding routes: %v", err)
+		}
 	}
 	return gin.HandlerFunc(fn)
 }
