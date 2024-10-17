@@ -2,9 +2,7 @@ package vpn
 
 import (
 	"context"
-	"io"
 	"log"
-	"time"
 
 	b64 "encoding/base64"
 
@@ -17,7 +15,8 @@ import (
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
-	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+
+	// "github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
@@ -69,12 +68,12 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// 'high watermark', as many peers will be pruned
 	// (and their connections terminated) until
 	// 'low watermark' peers remain.
-	connmgr, err := connmgr.NewConnManager(
-		5, // Lowwater
-		20, // HighWater
-		connmgr.WithGracePeriod(time.Minute),
-	)
-	utils.Check(err)
+	// connmgr, err := connmgr.NewConnManager(
+	// 	5,  // Lowwater
+	// 	20, // HighWater
+	// 	// connmgr.WithGracePeriod(time.Minute),
+	// )
+	// utils.Check(err)
 
 	// Sometimes the swarm_stream is left open, but the underlying yamux_stream is closed.
 	// This causes the resource limit to be reached. We Need to add monitoring and force to close old streams
@@ -84,7 +83,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	var idht *dht.IpfsDHT
 
 	// QUIC is an UDP-based transport protocol.
-	// QUIC connections are always encrypted (using TLS 1.3) and
+	// QUIC connections are always encrypted (usin	g TLS 1.3) and
 	// provides native stream multiplexing.
 	// Whenever possible, QUIC should be preferred over TCP.
 	// Not only is it faster, it also increases the chances of a
@@ -98,7 +97,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	node, err := libp2p.New(
 		// Let's prevent our peer from having too many
 		// connections by attaching a connection manager.
-		libp2p.ConnectionManager(connmgr),
+		// libp2p.ConnectionManager(connmgr),
 		// Multiple listen addresses
 		libp2p.ListenAddrStrings(
 			// "/ip6/::/udp/"+udpPort+"/quic-v1",      // IPv6 QUIC
@@ -207,11 +206,13 @@ func streamHandler(s network.Stream) {
 	// go io.Copy(s, nodeIface) // Rx
 	// go io.Copy(nodeIface, s) // Tx
 
+	buf_mtu := make([]byte, 64*1024)
+
 	// Start the goroutine with error handling
 	go func() {
 		for {
 			log.Println("🛰️🛰️🛰️")
-			n, err := io.Copy(s, nodeIface)
+			n, err := utils.Copy(s, nodeIface, buf_mtu)
 			log.Printf("📡📡📡 %d bytes copied from nodeIface to stream", n)
 			if err != nil {
 				log.Printf("🚨🚨🚨 Error copying data: %v", err)
@@ -225,7 +226,7 @@ func streamHandler(s network.Stream) {
 	go func() {
 		for {
 			log.Println("🛰️🛰️🛰️")
-			n, err := io.Copy(nodeIface, s)
+			n, err := utils.Copy(nodeIface, s, buf_mtu)
 			log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
 			if err != nil {
 				log.Printf("🚨🚨🚨 Error copying data: %v", err)

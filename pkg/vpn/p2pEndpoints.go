@@ -2,7 +2,6 @@ package vpn
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"runtime"
@@ -165,13 +164,15 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// go io.Copy(s, iface)
 		// go io.Copy(iface, s)
 
+		buf_mtu := make([]byte, 64*1024)
+
 		/////////////////////////////////
 		// Start the goroutine with error handling
 		go func() {
 			for {
 				log.Println("🛰️🛰️🛰️")
-				n, err := io.Copy(s, iface)
-				log.Printf("📡📡📡 %d bytes copied from iface to stream", n)
+				n, err := utils.Copy(s, iface, buf_mtu)
+				log.Printf("🡆🡆🡆 %d bytes copied from iface to stream", n)
 				if err != nil {
 					log.Printf("🚨🚨🚨 Error copying data: %v", err)
 					if err.Error() == "stream reset" {
@@ -183,9 +184,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 		go func() {
 			for {
-				log.Println("🛰️🛰️🛰️")
-				n, err := io.Copy(iface, s)
-				log.Printf("📡📡📡 %d bytes copied from stream to iface", n)
+				log.Println("📡📡📡")
+				n, err := utils.Copy(iface, s, buf_mtu)
+				log.Printf("🡄🡄🡄 %d bytes copied from stream to iface", n)
 				if err != nil {
 					log.Printf("🚨🚨🚨 Error copying data: %v", err)
 					if err.Error() == "stream reset" {
@@ -195,9 +196,15 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			}
 		}()
 
-		if err := utils.AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
-			log.Fatalf("Error adding routes: %v", err)
-		}
+		// // static route for the VPN endpointd
+		// if err := utils.AddEndpointRoute(node, dht); err != nil {
+		// 	log.Fatalf("Error adding routes: %v", err)
+		// }
+
+		// // new "default" route for redirecting all traffic to the VPN interface
+		// if err := utils.AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
+		// 	log.Fatalf("Error adding routes: %v", err)
+		// }
 	}
 	return gin.HandlerFunc(fn)
 }
