@@ -18,17 +18,17 @@ func getAddressesFromPeerId(peerId string, node host.Host, dht *dht.IpfsDHT) (pe
 	c := context.Background()
 	peerIdObj, err := peer.Decode(peerId)
 	if err != nil && utils.IsDebugEnabled() {
-		log.Println("[+] discovery error: ", err)
+		log.Println("[+] discovery error while adding route: ", err)
 	}
 	pi, err := dht.FindPeer(c, peerIdObj)
 	if err != nil && utils.IsDebugEnabled() {
-		log.Println("[+] discovery error: ", err)
+		log.Println("[+] discovery error while adding route: ", err)
 	}
 
 	// Connect to the peer ID
 	err = node.Connect(c, pi)
 	if err != nil && utils.IsDebugEnabled() {
-		log.Println("[+] discovery error: ", err)
+		log.Println("[+] discovery error while adding route: ", err)
 	}
 
 	// Get the peer address

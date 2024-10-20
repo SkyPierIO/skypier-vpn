@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"runtime"
+	"sync"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,11 @@ type SkypierNode struct {
 }
 
 const MTUSize = 1472
+
+var (
+	streams   = make(map[peerstore.ID]network.Stream)
+	streamsMu sync.Mutex
+)
 
 // GetConnectedPeersCount     godoc
 // @Summary      Get the ConnectedPeers Count
@@ -147,11 +153,17 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			c.IndentedJSON(200, err)
 			return
 		}
-		// we can open a new stream²
+		// we can open a new stream
 		s, err := node.NewStream(c, pi.ID, "/skypier/1.0")
 		if err != nil {
 			log.Println(err)
 		}
+
+		// Store the stream in the map
+		streamsMu.Lock()
+		streams[pi.ID] = s
+		streamsMu.Unlock()
+
 		iface := SetInterfaceUp()
 		type Result struct {
 			Res string `json:"result"`
@@ -205,6 +217,47 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		if err := AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
 			log.Fatalf("Error adding routes: %v", err)
 		}
+	}
+	return gin.HandlerFunc(fn)
+}
+
+// Disconnect function to handle the disconnect endpoint
+func Disconnect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		peerId := c.Param("peerId")
+		peerID, err := peerstore.Decode(peerId)
+		if err != nil {
+			log.Println("[+] Disconnection error: ", err)
+			c.IndentedJSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Retrieve the stream from the map
+		streamsMu.Lock()
+		stream, ok := streams[peerID]
+		if ok {
+			// Close the stream
+			stream.Close()
+			delete(streams, peerID)
+		}
+		streamsMu.Unlock()
+
+		if !ok {
+			log.Printf("[+] No active stream found for peer %s", peerID)
+			c.IndentedJSON(404, gin.H{"error": "No active stream found"})
+			return
+		}
+
+		// Remove the TUN interface
+		if err := RemoveInterface("utun8"); err != nil {
+			log.Println("[+] Disconnection error: ", err)
+			c.IndentedJSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Log the status
+		log.Println("[+] Successfully disconnected from the peer and removed the TUN interface.")
+		c.IndentedJSON(200, gin.H{"result": "Successfully disconnected from the peer and removed the TUN interface."})
 	}
 	return gin.HandlerFunc(fn)
 }

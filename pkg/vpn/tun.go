@@ -1,6 +1,7 @@
 package vpn
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
@@ -59,4 +60,16 @@ func SetInterfaceDown() error {
 		return err
 	}
 	return netlink.LinkSetDown(link)
+}
+
+// RemoveInterface removes the specified network interface
+func RemoveInterface(ifaceName string) error {
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("failed to get interface by name: %v", err)
+	}
+	if err := netlink.LinkDel(link); err != nil {
+		return fmt.Errorf("failed to delete interface: %v", err)
+	}
+	return nil
 }

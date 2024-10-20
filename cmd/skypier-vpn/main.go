@@ -104,6 +104,7 @@ func main() {
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
 	api.GET("/peer/:peerId/info", vpn.GetPeerIPAddresses(node, dht))
+	api.GET("/disconnect/:peerId", vpn.Disconnect(node, dht))
 	api.GET("/connected_peers_count", vpn.GetConnectedPeersCount(node, dht))
 
 	// Add a route for Swagger UI if requested in the configuration
