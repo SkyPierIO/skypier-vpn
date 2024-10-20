@@ -68,6 +68,13 @@ func main() {
 		ProtocolVersion: "1.0",
 	}
 
+	// Disable IPv6 for Beta release
+	// TODO: manage both IPv4 and IPv6 for the client
+	// TODO: manage routing for IPv6
+	if err := utils.DisableIPv6(); err != nil {
+		log.Fatalf("Failed to disable IPv6: %v", err)
+	}
+
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
 	// go vpn.DiscoverPeersWithKademlia(ctx, node, dht)

@@ -164,7 +164,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// go io.Copy(s, iface)
 		// go io.Copy(iface, s)
 
-		buf_mtu := make([]byte, 64*1024)
+		buf_mtu := make([]byte, 128*1024)
 
 		/////////////////////////////////
 		// Start the goroutine with error handling
@@ -196,15 +196,15 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			}
 		}()
 
-		// // static route for the VPN endpointd
-		// if err := utils.AddEndpointRoute(node, dht); err != nil {
-		// 	log.Fatalf("Error adding routes: %v", err)
-		// }
+		// static route for the VPN endpointd
+		if err := AddEndpointRoute(node, dht, c.Param("peerId")); err != nil {
+			log.Fatalf("Error adding routes: %v", err)
+		}
 
-		// // new "default" route for redirecting all traffic to the VPN interface
-		// if err := utils.AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
-		// 	log.Fatalf("Error adding routes: %v", err)
-		// }
+		// new "default" route for redirecting all traffic to the VPN interface
+		if err := AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
+			log.Fatalf("Error adding routes: %v", err)
+		}
 	}
 	return gin.HandlerFunc(fn)
 }

@@ -77,11 +77,11 @@ func main() {
 	// API Router
 	api := router.Group("/api/v0")
 	api.GET("/", utils.Ok)
+	api.GET("/id", vpn.GetLocalPeerId(node))
+	api.GET("/me", vpn.GetLocalPeerDetails(node))
 	api.GET("/ping", utils.Ping)
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
-	api.GET("/id", vpn.GetLocalPeerId(node))
-	api.GET("/me", vpn.GetLocalPeerDetails(node))
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
 
