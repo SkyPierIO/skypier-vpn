@@ -102,3 +102,18 @@ func OedipusSphinx(i string) {
 		os.Exit(1)
 	}
 }
+
+// writeToFile writes the given content to the specified file
+func writeToFile(path, content string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(content); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -84,3 +84,20 @@ func PrettyPrintIPHeader(packet []byte, level string) {
 	log.Printf(" %s| %-19s | %-19s |%s\n", color, "Destination Address", destinationAddress, Reset)
 	log.Println(color, "+---------------------+---------------------+", Reset)
 }
+
+// DisableIPv6 disables IPv6 on the host by writing to /proc/sys/net/ipv6/conf/*/disable_ipv6
+func DisableIPv6() error {
+	paths := []string{
+		"/proc/sys/net/ipv6/conf/all/disable_ipv6",
+		"/proc/sys/net/ipv6/conf/default/disable_ipv6",
+		"/proc/sys/net/ipv6/conf/lo/disable_ipv6",
+	}
+
+	for _, path := range paths {
+		if err := writeToFile(path, "1"); err != nil {
+			return fmt.Errorf("failed to disable IPv6 at %s: %v", path, err)
+		}
+	}
+
+	return nil
+}
