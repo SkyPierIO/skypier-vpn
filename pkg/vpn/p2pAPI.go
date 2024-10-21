@@ -187,7 +187,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				log.Printf("🡆🡆🡆 %d bytes copied from iface to stream", n)
 				if err != nil {
 					log.Printf("🚨🚨🚨 Error copying data: %v", err)
-					if err.Error() == "stream reset" {
+					if err.Error() == "stream reset" || err.Error() == "read tun: not pollable" {
 						return
 					}
 				}
