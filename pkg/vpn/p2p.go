@@ -206,7 +206,7 @@ func streamHandler(s network.Stream) {
 	// go io.Copy(s, nodeIface) // Rx
 	// go io.Copy(nodeIface, s) // Tx
 
-	buf_mtu := make([]byte, 128*1024)
+	buf_mtu := make([]byte, 192*1024)
 
 	// Start the goroutine with error handling
 	go func() {

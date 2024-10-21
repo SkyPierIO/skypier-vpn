@@ -65,7 +65,6 @@ func GetVPNStatus(c *gin.Context) {
 }
 
 func checkVPNStatus() VPNStatus {
-
 	interfaceName := "utun8"
 	isUp, err := IsTUNInterfaceUp(interfaceName)
 	if err != nil {
@@ -73,15 +72,21 @@ func checkVPNStatus() VPNStatus {
 	}
 	if isUp {
 		// Gather details about the remote node
-		ip := "10.1.1.2"            // TODO: Example IP address, replace with actual logic to get IP
-		peerID := "QmExamplePeerID" // TODO: Example Peer ID, replace with actual logic to get Peer ID
-		country := "US"             // TODO: Example country, replace with actual logic to get country
+		ip := "10.1.1.2" // TODO: Example IP address, replace with actual logic to get IP
+
+		// Find the peer ID associated with the active stream
+		var peerID string
+		streamsMu.Lock()
+		for pid := range streams {
+			peerID = pid.String()
+			break
+		}
+		streamsMu.Unlock()
 
 		return VPNStatus{
-			Status:  "connected",
-			IP:      ip,
-			PeerID:  peerID,
-			Country: country,
+			Status: "connected",
+			IP:     ip,
+			PeerID: peerID,
 		}
 	} else {
 		return VPNStatus{Status: "disconnected"}

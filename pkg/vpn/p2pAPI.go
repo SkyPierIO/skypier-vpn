@@ -176,7 +176,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// go io.Copy(s, iface)
 		// go io.Copy(iface, s)
 
-		buf_mtu := make([]byte, 128*1024)
+		buf_mtu := make([]byte, 192*1024)
 
 		/////////////////////////////////
 		// Start the goroutine with error handling
