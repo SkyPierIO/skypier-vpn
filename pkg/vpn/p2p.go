@@ -228,9 +228,15 @@ func streamHandler(s network.Stream) {
 			log.Println("🛰️🛰️🛰️")
 			n, err := utils.Copy(nodeIface, s, buf_mtu)
 			log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
+			log.Println("err debug", err)
 			if err != nil {
 				log.Printf("🚨🚨🚨 Error copying data: %v", err)
 				if err.Error() == "stream reset" {
+					return
+				}
+			} else {
+				if n == 0 {
+					log.Println("🚨🚨🚨 No data copied, closing stream")
 					return
 				}
 			}
