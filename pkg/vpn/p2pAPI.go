@@ -182,8 +182,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Start the goroutine with error handling
 		go func() {
 			for {
-				log.Println("🛰️🛰️🛰️")
-				n, err := utils.Copy(s, iface, buf_mtu)
+				// Wrap the stream writer with the length-prefixed writer
+				lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
+				n, err := utils.Copy(lengthPrefixedStream, iface, buf_mtu)
 				log.Printf("🡆🡆🡆 %d bytes copied from iface to stream", n)
 				if err != nil {
 					log.Printf("🚨🚨🚨 Error copying data: %v", err)
@@ -196,11 +197,18 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 		go func() {
 			for {
-				log.Println("📡📡📡")
-				n, err := utils.Copy(iface, s, buf_mtu)
-				log.Printf("🡄🡄🡄 %d bytes copied from stream to iface", n)
+				// Wrap the stream reader with the length-prefixed reader
+				lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
+				n, err := utils.Copy(iface, lengthPrefixedStream, buf_mtu)
+				// n, err := utils.AltCopy(iface, s)
 				if err != nil {
-					log.Printf("🚨🚨🚨 Error copying data: %v", err)
+					if err.Error() == "short buffer" {
+						continue // 0 bytes copied, continue
+					}
+					if n != 0 {
+						log.Printf("🡄🡄🡄 %d bytes copied from stream to iface", n)
+						log.Printf("🚨🚨🚨 Error copying data: %v", err)
+					}
 					if err.Error() == "stream reset" {
 						return
 					}

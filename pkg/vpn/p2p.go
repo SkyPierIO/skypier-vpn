@@ -211,9 +211,10 @@ func streamHandler(s network.Stream) {
 	// Start the goroutine with error handling
 	go func() {
 		for {
-			log.Println("🛰️🛰️🛰️")
-			n, err := utils.Copy(s, nodeIface, buf_mtu)
-			log.Printf("📡📡📡 %d bytes copied from nodeIface to stream", n)
+			// Wrap the stream writer with the length-prefixed writer
+			lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
+			n, err := utils.Copy(lengthPrefixedStream, nodeIface, buf_mtu)
+			log.Printf("🡄🡄🡄 %d bytes copied from nodeIface to stream", n)
 			if err != nil {
 				log.Printf("🚨🚨🚨 Error copying data: %v", err)
 				if err.Error() == "stream reset" {
@@ -225,12 +226,17 @@ func streamHandler(s network.Stream) {
 
 	go func() {
 		for {
-			log.Println("🛰️🛰️🛰️")
-			n, err := utils.Copy(nodeIface, s, buf_mtu)
-			log.Printf("📡📡📡 %d bytes copied from stream to nodeIface", n)
-			log.Println("err debug", err)
+			// Wrap the stream reader with the length-prefixed reader
+			lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
+			n, err := utils.Copy(nodeIface, lengthPrefixedStream, buf_mtu)
 			if err != nil {
-				log.Printf("🚨🚨🚨 Error copying data: %v", err)
+				if err.Error() == "short buffer" {
+					continue // 0 bytes copied, continue
+				}
+				if n != 0 {
+					log.Printf("🡆🡆🡆 %d bytes copied from stream to nodeIface", n)
+					log.Printf("🚨🚨🚨 Error copying data: %v", err)
+				}
 				if err.Error() == "stream reset" {
 					return
 				}
