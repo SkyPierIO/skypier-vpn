@@ -64,32 +64,7 @@ func getAddressesFromPeerId(peerId string, node host.Host, dht *dht.IpfsDHT) (pe
 			fmt.Println("Public Peer IPv4 address: ", v)
 		}
 	}
-	return peerIPAddresses
-}
-
-// getDefaultInterfaceAndGateway returns the default network interface and gateway
-func getDefaultInterfaceAndGateway() (netlink.Link, net.IP, error) {
-	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list routes: %v", err)
-	}
-
-	_, defaultRoute, err := net.ParseCIDR("0.0.0.0/0")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse default route: %v", err)
-	}
-
-	for _, route := range routes {
-		if route.Dst != nil && route.Dst.IP.Equal(defaultRoute.IP) && route.Dst.Mask.String() == defaultRoute.Mask.String() && route.Gw != nil {
-			iface, err := netlink.LinkByIndex(route.LinkIndex)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get interface by index: %v", err)
-			}
-			return iface, route.Gw, nil
-		}
-	}
-
-	return nil, nil, fmt.Errorf("default route not found")
+	return publicPeerIPAddresses
 }
 
 // Add a static route to the endpoint using the main network interface
@@ -98,6 +73,7 @@ func getDefaultInterfaceAndGateway() (netlink.Link, net.IP, error) {
 // to a remote server
 // The IP address of the remote server is passed as a string
 // The function returns an error if the route could not be added
+// AddEndpointRoute adds a route to the destination peer IP
 func AddEndpointRoute(node host.Host, dht *dht.IpfsDHT, peerId string) error {
 	// Get the peer IP addresses
 	peerIPs := getAddressesFromPeerId(peerId, node, dht)
@@ -116,30 +92,18 @@ func AddEndpointRoute(node host.Host, dht *dht.IpfsDHT, peerId string) error {
 		}
 
 		// Check if the route already exists
-		filter := &netlink.Route{
-			Dst: dst,
-		}
-		routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, filter, netlink.RT_FILTER_DST)
+		exists, err := routeExists(iface, dst)
 		if err != nil {
-			return fmt.Errorf("failed to list routes: %v", err)
+			return fmt.Errorf("failed to check if route exists: %v", err)
 		}
-
-		if len(routes) > 0 {
-			log.Printf("Route to %s already exists, skipping", peerIP)
+		if exists {
 			continue
 		}
 
-		route := &netlink.Route{
-			LinkIndex: iface.Attrs().Index,
-			Dst:       dst,
-			Gw:        gw,
-		}
-
 		// Add the route
-		if err := netlink.RouteAdd(route); err != nil {
+		if err := addRoute(iface, dst, gw); err != nil {
 			return fmt.Errorf("failed to add route to %s: %v", peerIP, err)
 		}
-		log.Printf("Successfully added route to %s via %s on interface %s", peerIP, gw, iface.Attrs().Name)
 	}
 
 	return nil
