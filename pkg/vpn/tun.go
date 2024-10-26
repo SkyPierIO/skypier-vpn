@@ -3,13 +3,19 @@ package vpn
 import (
 	"fmt"
 	"log"
+	"os/exec"
+	"runtime"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
 )
 
-var InterfaceName = "utun8"
+var (
+	localIP       = "10.1.1.1" // TODO remove static IP
+	remoteIP      = "10.1.1.2" // TODO remove static IP
+	InterfaceName = "utun8"
+)
 
 func SetInterfaceUp() *water.Interface {
 	config := water.Config{
@@ -25,32 +31,24 @@ func SetInterfaceUp() *water.Interface {
 
 	log.Println("Set TUN interface up")
 
-	// Configure the network interface
-	pierIface, _ := netlink.LinkByName(InterfaceName)
-	var addr *netlink.Addr
-	if utils.IS_NODE_HOST {
-		addr, _ = netlink.ParseAddr("10.1.1.2/24") // TODO remove static IP
+	if runtime.GOOS == "darwin" {
+		// macOS specific configuration
+		err := configureTunMacOS(InterfaceName, localIP, remoteIP)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
-		addr, _ = netlink.ParseAddr("10.1.1.1/24") // TODO remove static IP
+		// Linux specific configuration
+		pierIface, _ := netlink.LinkByName(InterfaceName)
+		var addr *netlink.Addr
+		if utils.IS_NODE_HOST {
+			addr, _ = netlink.ParseAddr(remoteIP + "/24")
+		} else {
+			addr, _ = netlink.ParseAddr(localIP + "/24")
+		}
+		netlink.AddrAdd(pierIface, addr)
+		netlink.LinkSetUp(pierIface)
 	}
-	netlink.AddrAdd(pierIface, addr)
-	netlink.LinkSetUp(pierIface)
-
-	// if !utils.IS_NODE_HOST {
-	// 	// Add default IP route
-	// 	defaultRoute := &netlink.Route{
-	// 		Dst:       nil,
-	// 		Gw:        net.ParseIP("10.1.1.2"),
-	// 		LinkIndex: pierIface.Attrs().Index,
-	// 		Protocol:  0,  // Set the protocol to static
-	// 		Priority:  50, // Set the priority to 50
-	// 	}
-	// 	err = netlink.RouteAdd(defaultRoute)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }
-
 	return iface
 }
 
@@ -71,5 +69,21 @@ func RemoveInterface(ifaceName string) error {
 	if err := netlink.LinkDel(link); err != nil {
 		return fmt.Errorf("failed to delete interface: %v", err)
 	}
+	return nil
+}
+
+func configureTunMacOS(ifaceName, localIP, remoteIP string) error {
+	// Set the local address
+	cmd := exec.Command("ifconfig", ifaceName, "inet", localIP, remoteIP, "up")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	// Add the route to the remote address
+	cmd = exec.Command("route", "add", remoteIP, "-interface", ifaceName)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
 	return nil
 }
