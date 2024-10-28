@@ -86,6 +86,8 @@ func PrettyPrintIPHeader(packet []byte, level string) {
 }
 
 // DisableIPv6 disables IPv6 on the host by writing to /proc/sys/net/ipv6/conf/*/disable_ipv6
+// Support Linux hosts only at the moment.
+// TODO do MacOS and Windows if still needed
 func DisableIPv6() error {
 	paths := []string{
 		"/proc/sys/net/ipv6/conf/all/disable_ipv6",
