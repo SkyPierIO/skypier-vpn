@@ -24,12 +24,32 @@ type SkypierNode struct {
 	// Uptime          time.Duration `json:"uptime"`
 }
 
-const MTUSize = 1472
-
 var (
 	streams   = make(map[peerstore.ID]network.Stream)
 	streamsMu sync.Mutex
+	closeOnce sync.Once
 )
+
+// CloseAllStreams closes all active streams in the streams mapping.
+func CloseAllStreams() {
+	streamsMu.Lock()
+	defer streamsMu.Unlock()
+	for peerID, stream := range streams {
+		if err := stream.Close(); err != nil {
+			log.Printf("Error closing stream for peer %s: %v", peerID, err)
+		} else {
+			log.Printf("Successfully closed stream for peer %s", peerID)
+		}
+	}
+	streams = make(map[peerstore.ID]network.Stream) // Clear the map
+}
+
+func HandleExit() {
+	CloseAllStreams()
+	closeOnce.Do(func() {
+		close(stopChan)
+	})
+}
 
 // GetConnectedPeersCount     godoc
 // @Summary      Get the ConnectedPeers Count
@@ -182,14 +202,20 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Start the goroutine with error handling
 		go func() {
 			for {
-				// Wrap the stream writer with the length-prefixed writer
-				lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
-				n, err := utils.Copy(lengthPrefixedStream, iface, buf_mtu)
-				log.Printf("🡆🡆🡆 %d bytes copied from iface to stream", n)
-				if err != nil {
-					log.Printf("🚨🚨🚨 Error copying data: %v", err)
-					if err.Error() == "stream reset" || err.Error() == "read tun: not pollable" {
-						return
+				select {
+				case <-stopChan:
+					return
+				default:
+					// Wrap the stream writer with the length-prefixed writer
+					lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
+					n, err := utils.Copy(lengthPrefixedStream, iface, buf_mtu)
+					log.Printf("➡️ %d bytes copied from iface to stream", n)
+					if err != nil {
+						log.Printf("🚨🚨🚨 Error copying data: %v", err)
+						if shouldCloseStream(err) {
+							handleCloseStreamHandler()
+							return
+						}
 					}
 				}
 			}
@@ -197,33 +223,38 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 		go func() {
 			for {
-				// Wrap the stream reader with the length-prefixed reader
-				lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
-				n, err := utils.Copy(iface, lengthPrefixedStream, buf_mtu)
-				// n, err := utils.AltCopy(iface, s)
-				if err != nil {
-					if err.Error() == "short buffer" {
-						continue // 0 bytes copied, continue
-					}
-					if n != 0 {
-						log.Printf("🡄🡄🡄 %d bytes copied from stream to iface", n)
-						log.Printf("🚨🚨🚨 Error copying data: %v", err)
-					}
-					if err.Error() == "stream reset" {
-						return
+				select {
+				case <-stopChan:
+					return
+				default:
+					// Wrap the stream reader with the length-prefixed reader
+					lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
+					n, err := utils.Copy(iface, lengthPrefixedStream, buf_mtu)
+					// n, err := utils.AltCopy(iface, s)
+					if err != nil {
+						if err.Error() == "short buffer" {
+							continue // 0 bytes copied, continue
+						}
+						if n != 0 {
+							log.Printf("⬅️ %d bytes copied from stream to iface", n)
+							log.Printf("🚨🚨🚨 Error copying data: %v", err)
+						}
+						if shouldCloseStream(err) {
+							handleCloseStreamHandler()
+						}
 					}
 				}
 			}
 		}()
 
-		// static route for the VPN endpointd
+		// static route for the VPN endpoint
 		if err := AddEndpointRoute(node, dht, c.Param("peerId")); err != nil {
-			log.Fatalf("Error adding routes: %v", err)
+			log.Fatalf("Error adding static route for the VPN endpoint: %v", err)
 		}
 
 		// new "default" route for redirecting all traffic to the VPN interface
 		if err := AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
-			log.Fatalf("Error adding routes: %v", err)
+			log.Fatalf("Error adding routes (traffic redirection): %v", err)
 		}
 	}
 	return gin.HandlerFunc(fn)

@@ -50,6 +50,7 @@ func main() {
 	go func() {
 		<-c
 		log.Println("Exiting Skypier...")
+		vpn.HandleExit()
 		os.Exit(1)
 	}()
 

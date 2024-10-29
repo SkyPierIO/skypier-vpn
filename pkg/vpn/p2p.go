@@ -3,6 +3,7 @@ package vpn
 import (
 	"context"
 	"log"
+	"strings"
 
 	b64 "encoding/base64"
 
@@ -28,7 +29,14 @@ import (
 var (
 	tunEnabled bool
 	nodeIface  *water.Interface
+	stopChan   = make(chan struct{})
 )
+
+func handleCloseStreamHandler() {
+	closeOnce.Do(func() {
+		close(stopChan)
+	})
+}
 
 func displayNodeInfo(node host.Host) {
 	// print node ID
@@ -178,6 +186,18 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	return node, idht, err
 }
 
+func shouldCloseStream(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return errMsg == "stream reset" ||
+		errMsg == "no recent network activity" ||
+		errMsg == "read tun: not pollable" ||
+		strings.Contains(errMsg, "received a stateless reset with token") ||
+		strings.Contains(errMsg, "Application error 0x0")
+}
+
 func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
 	log.Println("Generating identity...")
 	privKey, err := LoadPrivateKey()
@@ -203,22 +223,28 @@ func streamHandler(s network.Stream) {
 		tunEnabled = true
 	}
 
-	// go io.Copy(s, nodeIface) // Rx
-	// go io.Copy(nodeIface, s) // Tx
-
 	buf_mtu := make([]byte, 192*1024)
 
 	// Start the goroutine with error handling
 	go func() {
 		for {
-			// Wrap the stream writer with the length-prefixed writer
-			lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
-			n, err := utils.Copy(lengthPrefixedStream, nodeIface, buf_mtu)
-			log.Printf("🡄🡄🡄 %d bytes copied from nodeIface to stream", n)
-			if err != nil {
-				log.Printf("🚨🚨🚨 Error copying data: %v", err)
-				if err.Error() == "stream reset" {
-					return
+			select {
+			case <-stopChan:
+				return
+			default:
+				// Wrap the stream writer with the length-prefixed writer
+				lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
+				n, err := utils.Copy(lengthPrefixedStream, nodeIface, buf_mtu)
+				log.Printf("⬅️ %d bytes copied from nodeIface to stream", n)
+				if err != nil {
+					log.Printf("🚨🚨🚨 Error copying data: %v", err)
+					if shouldCloseStream(err) {
+						log.Println("Closing stream...")
+						handleCloseStreamHandler()
+						return
+					} else {
+						log.Println("Error is not so bad, continue... (debug)")
+					}
 				}
 			}
 		}
@@ -226,31 +252,33 @@ func streamHandler(s network.Stream) {
 
 	go func() {
 		for {
-			// Wrap the stream reader with the length-prefixed reader
-			lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
-			n, err := utils.Copy(nodeIface, lengthPrefixedStream, buf_mtu)
-			if err != nil {
-				if err.Error() == "short buffer" {
-					continue // 0 bytes copied, continue
-				}
-				if n != 0 {
-					log.Printf("🡆🡆🡆 %d bytes copied from stream to nodeIface", n)
-					log.Printf("🚨🚨🚨 Error copying data: %v", err)
-				}
-				if err.Error() == "stream reset" {
-					return
-				}
-			} else {
-				if n == 0 {
-					log.Println("🚨🚨🚨 No data copied, closing stream")
-					return
+			select {
+			case <-stopChan:
+				return
+			default:
+				// Wrap the stream reader with the length-prefixed reader
+				lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
+				n, err := utils.Copy(nodeIface, lengthPrefixedStream, buf_mtu)
+				if err != nil {
+					if err.Error() == "short buffer" {
+						continue // 0 bytes copied, continue
+					}
+					if n != 0 {
+						log.Printf("➡️ %d bytes copied from stream to nodeIface", n)
+						log.Printf("🚨🚨🚨 Error copying data: %v", err)
+					}
+					if shouldCloseStream(err) {
+						handleCloseStreamHandler()
+						return
+					}
+				} else {
+					if n == 0 {
+						log.Println("🚨🚨🚨 No data copied, closing stream")
+						handleCloseStreamHandler()
+						return
+					}
 				}
 			}
 		}
 	}()
-
-	// stream will stay open until you close it (or the other side closes it).
-	// Keep the main function running
-	select {}
-
 }
