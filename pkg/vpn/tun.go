@@ -79,6 +79,11 @@ func configureTunMacOS(ifaceName, localIP, remoteIP string) error {
 		return err
 	}
 
+	// Set the MTU
+	cmd = exec.Command("sudo", "ifconfig", ifaceName, "mtu", fmt.Sprintf("%d", 1500))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to set MTU: %v, output: %s", err, output)
+	}
 	// Add the route to the remote address
 	cmd = exec.Command("route", "add", remoteIP, "-interface", ifaceName)
 	if err := cmd.Run(); err != nil {

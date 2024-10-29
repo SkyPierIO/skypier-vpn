@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Ensure you have ImageMagick installed
 if ! command -v convert &> /dev/null; then
     echo "ImageMagick is required. Please install it first."
@@ -105,3 +107,39 @@ hdiutil create ${DMG_NAME} -volname "${APP_NAME}" -srcfolder tmp-dmg -ov -format
 rm -rf tmp-dmg
 
 echo "DMG file ${DMG_NAME} created successfully."
+
+# Install the application on macOS
+INSTALL_DIR="/Applications"
+BIN_DIR="/usr/local/bin"
+DESKTOP_ENTRY_DIR="$HOME/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments"
+
+# Create the Applications folder if it doesn't exist
+mkdir -p "${INSTALL_DIR}"
+
+# Copy the .app bundle to the Applications folder
+cp -R "${APP_NAME}.app" "${INSTALL_DIR}"
+
+# Create a symbolic link to the start.sh script in /usr/local/bin
+ln -sf "${INSTALL_DIR}/${APP_NAME}.app/Contents/MacOS/start.sh" "${BIN_DIR}/skypier"
+
+# Create a Desktop entry (Recent Applications)
+mkdir -p "${DESKTOP_ENTRY_DIR}"
+cat <<EOF > "${DESKTOP_ENTRY_DIR}/skypier.sfl"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.LSSharedFileList.RecentApplications</key>
+    <array>
+        <dict>
+            <key>URL</key>
+            <string>file://${INSTALL_DIR}/${APP_NAME}.app</string>
+            <key>name</key>
+            <string>${APP_NAME}</string>
+        </dict>
+    </array>
+</dict>
+</plist>
+EOF
+
+echo "Installation completed successfully."

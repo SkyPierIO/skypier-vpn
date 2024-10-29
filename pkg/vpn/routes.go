@@ -11,7 +11,6 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/vishvananda/netlink"
 )
 
 func getAddressesFromPeerId(peerId string, node host.Host, dht *dht.IpfsDHT) (peerIPAddresses []string) {
@@ -101,7 +100,7 @@ func AddEndpointRoute(node host.Host, dht *dht.IpfsDHT, peerId string) error {
 		}
 
 		// Add the route
-		if err := addRoute(iface, dst, gw); err != nil {
+		if err := addHostRoute(iface, dst, gw); err != nil {
 			return fmt.Errorf("failed to add route to %s: %v", peerIP, err)
 		}
 	}
@@ -109,52 +108,52 @@ func AddEndpointRoute(node host.Host, dht *dht.IpfsDHT, peerId string) error {
 	return nil
 }
 
-func AddDefaultRoute(interfaceName, gateway string) error {
-	// Get the network interface by name
-	iface, err := netlink.LinkByName(interfaceName)
-	if err != nil {
-		log.Printf("Failed to get interface %s: %v", interfaceName, err)
-		return err
-	}
+// func AddDefaultRoute(interfaceName, gateway string) error {
+// 	// Get the network interface by name
+// 	iface, err := netlink.LinkByName(interfaceName)
+// 	if err != nil {
+// 		log.Printf("Failed to get interface %s: %v", interfaceName, err)
+// 		return err
+// 	}
 
-	// Parse the gateway IP address
-	gw := net.ParseIP(gateway)
-	if gw == nil {
-		log.Printf("Invalid gateway IP address: %s", gateway)
-		return err
-	}
+// 	// Parse the gateway IP address
+// 	gw := net.ParseIP(gateway)
+// 	if gw == nil {
+// 		log.Printf("Invalid gateway IP address: %s", gateway)
+// 		return err
+// 	}
 
-	// Define the routes to be added
-	// equivalent to the default route
-	// but without removing the existing default route on the host
-	// CIDR 0.0.0.0/1 and 128.0.0.0/1 are used to cover the entire IPv4 address space
-	routes := []string{
-		"0.0.0.0/1",
-		"128.0.0.0/1",
-	}
+// 	// Define the routes to be added
+// 	// equivalent to the default route
+// 	// but without removing the existing default route on the host
+// 	// CIDR 0.0.0.0/1 and 128.0.0.0/1 are used to cover the entire IPv4 address space
+// 	routes := []string{
+// 		"0.0.0.0/1",
+// 		"128.0.0.0/1",
+// 	}
 
-	for _, route := range routes {
-		// Parse the destination CIDR
-		_, dst, err := net.ParseCIDR(route)
-		if err != nil {
-			log.Printf("Invalid route CIDR: %s", route)
-			return err
-		}
+// 	for _, route := range routes {
+// 		// Parse the destination CIDR
+// 		_, dst, err := net.ParseCIDR(route)
+// 		if err != nil {
+// 			log.Printf("Invalid route CIDR: %s", route)
+// 			return err
+// 		}
 
-		// Create the route object
-		route := &netlink.Route{
-			LinkIndex: iface.Attrs().Index,
-			Dst:       dst,
-			Gw:        gw,
-		}
+// 		// Create the route object
+// 		route := &netlink.Route{
+// 			LinkIndex: iface.Attrs().Index,
+// 			Dst:       dst,
+// 			Gw:        gw,
+// 		}
 
-		// Add the route
-		if err := netlink.RouteAdd(route); err != nil {
-			log.Printf("Failed to add route %s: %v", route, err)
-			return err
-		}
-		log.Printf("Successfully added route %s via %s on interface %s", route.Dst.IP, gateway, interfaceName)
-	}
+// 		// Add the route
+// 		if err := netlink.RouteAdd(route); err != nil {
+// 			log.Printf("Failed to add route %s: %v", route, err)
+// 			return err
+// 		}
+// 		log.Printf("Successfully added route %s via %s on interface %s", route.Dst.IP, gateway, interfaceName)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
