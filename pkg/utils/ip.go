@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os/exec"
+	"strings"
 )
 
 // isPublicIP checks if the given IP address is public.
@@ -88,7 +90,7 @@ func PrettyPrintIPHeader(packet []byte, level string) {
 // DisableIPv6 disables IPv6 on the host by writing to /proc/sys/net/ipv6/conf/*/disable_ipv6
 // Support Linux hosts only at the moment.
 // TODO do MacOS and Windows if still needed
-func DisableIPv6() error {
+func DisableIPv6Linux() error {
 	paths := []string{
 		"/proc/sys/net/ipv6/conf/all/disable_ipv6",
 		"/proc/sys/net/ipv6/conf/default/disable_ipv6",
@@ -101,5 +103,50 @@ func DisableIPv6() error {
 		}
 	}
 
+	return nil
+}
+
+func DisableIPv6Darwin() error {
+	// List all network services
+	services, err := listNetworkServicesDarwin()
+	if err != nil {
+		return fmt.Errorf("failed to list network services: %v", err)
+	}
+
+	// Disable IPv6 on each network service
+	for _, service := range services {
+		if err := disableIPv6OnServiceDarwin(service); err != nil {
+			return fmt.Errorf("failed to disable IPv6 on %s: %v", service, err)
+		}
+	}
+
+	return nil
+}
+
+func listNetworkServicesDarwin() ([]string, error) {
+	cmd := exec.Command("networksetup", "-listallnetworkservices")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list network services: %v, output: %s", err, output)
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var services []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "An asterisk (*) denotes that a network service is disabled.") {
+			services = append(services, line)
+		}
+	}
+
+	return services, nil
+}
+
+func disableIPv6OnServiceDarwin(service string) error {
+	cmd := exec.Command("networksetup", "-setv6off", service)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to disable IPv6 on service %s: %v, output: %s", service, err, output)
+	}
 	return nil
 }
