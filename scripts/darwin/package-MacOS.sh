@@ -54,15 +54,35 @@ mv skypier-vpn-darwin-amd64 ${APP_NAME}.app/Contents/MacOS/skypier-vpn
 cat <<EOF > ${APP_NAME}.app/Contents/MacOS/start.sh
 #!/bin/bash
 
-osascript -e 'do shell script "sudo /opt/skypier/skypier-vpn" with administrator privileges'
+# MACOS specific start script
 
-if [ \$? -ne 0 ]; then
+# Get the directory of the current script
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Path to the skypier-vpn binary
+SKYPIER_VPN="$SCRIPT_DIR/skypier-vpn"
+
+# Check if the skypier-vpn binary exists
+if [ ! -f "$SKYPIER_VPN" ]; then
+  echo "Error: skypier-vpn binary not found at $SKYPIER_VPN"
+  exit 1
+fi
+
+# Run the skypier-vpn binary with administrator privileges
+osascript -e "do shell script \"$SKYPIER_VPN &> /dev/null &\" with administrator privileges"
+
+if [ $? -ne 0 ]; then
   echo "osascript failed: invalid password or insufficient permissions."
   exit 1
 fi
 
-sleep 5
-open http://skypier.localhost:8081/ 2> /dev/null
+# Wait for the skypier-vpn process to start
+sleep 3
+
+# Open the web interface
+open http://localhost:8081/ 2> /dev/null
+
+# Wait for the skypier-vpn process to finish
 wait
 EOF
 
