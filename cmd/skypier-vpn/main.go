@@ -51,7 +51,7 @@ func main() {
 		<-c
 		log.Println("Exiting Skypier...")
 		vpn.HandleExit()
-		os.Exit(1)
+		os.Exit(0)
 	}()
 
 	utils.DefineAsNodeHost(false)
@@ -105,6 +105,7 @@ func main() {
 	api.GET("/id", vpn.GetLocalPeerId(node))
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
 	api.GET("/ping", utils.Ping)
+	api.GET("/quit", vpn.QuitSkypier)
 	api.GET("/status", vpn.GetVPNStatus)
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)

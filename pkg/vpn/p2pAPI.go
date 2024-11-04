@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -49,6 +51,18 @@ func HandleExit() {
 	closeOnce.Do(func() {
 		close(stopChan)
 	})
+}
+
+func QuitSkypier(c *gin.Context) {
+	// Send the response first
+	c.JSON(http.StatusOK, gin.H{"status": "quitting"})
+
+	// Delay the exit to ensure the response is sent
+	go func() {
+		time.Sleep(1 * time.Second)
+		HandleExit()
+		os.Exit(0)
+	}()
 }
 
 // GetConnectedPeersCount     godoc
