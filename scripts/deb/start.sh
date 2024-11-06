@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pkexec /opt/skypier/skypier-vpn &
+pkexec /usr/local/bin/skypier-vpn &
 if [ $? -ne 0 ]; then
   echo "pkexec failed: invalid password or insufficient permissions."
   exit 1
