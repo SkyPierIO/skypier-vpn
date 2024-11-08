@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -40,6 +41,16 @@ func IsPublicIP(ipStr string) bool {
 	return true // IP is public
 }
 
+// PrettyPrintIPHeader prints the IP header information from a given packet in a formatted manner.
+// The output is color-coded based on the specified log level.
+//
+// Parameters:
+//   - packet: A byte slice containing the IP packet data.
+//   - level: A string representing the log level. It can be "DEBUG", "ERROR", or any other string for default.
+//
+// The function extracts various fields from the IP header such as version, IHL, type of service, total length,
+// identification, flags, fragment offset, time to live, protocol, header checksum, source address, and destination address.
+// It then prints these fields in a tabular format with appropriate color coding.
 func PrettyPrintIPHeader(packet []byte, level string) {
 	color := Cyan
 	switch level {
@@ -106,6 +117,30 @@ func DisableIPv6Linux() error {
 	return nil
 }
 
+// EnableIPv6Linux enables IPv6 on a Linux system by writing "0" to specific
+// system files that control the IPv6 configuration. It iterates over a list
+// of file paths and writes "0" to each file to enable IPv6. If writing to any
+// of the files fails, it returns an error indicating which file caused the failure.
+//
+// Returns:
+//   - error: An error if enabling IPv6 fails for any of the specified paths,
+//     otherwise nil.
+func EnableIPv6Linux() error {
+	paths := []string{
+		"/proc/sys/net/ipv6/conf/all/disable_ipv6",
+		"/proc/sys/net/ipv6/conf/default/disable_ipv6",
+		"/proc/sys/net/ipv6/conf/lo/disable_ipv6",
+	}
+
+	for _, path := range paths {
+		if err := writeToFile(path, "0"); err != nil {
+			return fmt.Errorf("failed to enable IPv6 at %s: %v", path, err)
+		}
+	}
+
+	return nil
+}
+
 func DisableIPv6Darwin() error {
 	// List all network services
 	services, err := listNetworkServicesDarwin()
@@ -121,6 +156,51 @@ func DisableIPv6Darwin() error {
 	}
 
 	return nil
+}
+
+func EnableIPv6Darwin() error {
+	servicesOutput, err := exec.Command("networksetup", "-listallnetworkservices").Output()
+	if err != nil {
+		return fmt.Errorf("failed to list network services: %v", err)
+	}
+
+	services := strings.Split(string(servicesOutput), "\n")
+	for _, service := range services {
+		service = strings.TrimSpace(service)
+		if service == "" || strings.HasPrefix(service, "An asterisk") {
+			continue
+		}
+
+		if err := exec.Command("networksetup", "-setv6automatic", service).Run(); err != nil {
+			return fmt.Errorf("failed to enable IPv6 for service %s: %v", service, err)
+		}
+	}
+
+	return nil
+}
+
+// DisableIPv6 disables IPv6 based on the operating system.
+func DisableIPv6() error {
+	switch runtime.GOOS {
+	case "linux":
+		return DisableIPv6Linux()
+	case "darwin":
+		return DisableIPv6Darwin()
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+}
+
+// EnableIPv6 enables IPv6 based on the operating system.
+func EnableIPv6() error {
+	switch runtime.GOOS {
+	case "linux":
+		return EnableIPv6Linux()
+	case "darwin":
+		return EnableIPv6Darwin()
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
 }
 
 func listNetworkServicesDarwin() ([]string, error) {

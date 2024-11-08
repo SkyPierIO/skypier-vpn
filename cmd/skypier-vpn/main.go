@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"runtime"
 	"strconv"
 	"syscall"
 
@@ -51,6 +50,9 @@ func main() {
 		<-c
 		log.Println("Exiting Skypier...")
 		vpn.HandleExit()
+		if err := utils.EnableIPv6(); err != nil {
+			log.Fatalf("Error restablishing IPv6 addressing: %v", err)
+		}
 		os.Exit(0)
 	}()
 
@@ -73,15 +75,10 @@ func main() {
 	// Disable IPv6 for Beta release
 	// TODO: manage both IPv4 and IPv6 for the client
 	// TODO: manage routing for IPv6
-	if runtime.GOOS == "linux" {
-		if err := utils.DisableIPv6Linux(); err != nil {
-			log.Fatalf("Failed to disable IPv6: %v", err)
-		}
-	} else if runtime.GOOS == "darwin" {
-		if err := utils.DisableIPv6Darwin(); err != nil {
-			log.Fatalf("Failed to disable IPv6: %v", err)
-		}
+	if err := utils.DisableIPv6(); err != nil {
+		log.Fatalf("Failed to disable IPv6: %v", err)
 	}
+
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
 	// go vpn.DiscoverPeersWithKademlia(ctx, node, dht)

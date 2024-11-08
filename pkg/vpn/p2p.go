@@ -18,6 +18,7 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 
 	// "github.com/libp2p/go-libp2p/p2p/net/connmgr"
+
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
@@ -78,8 +79,8 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// 'low watermark' peers remain.
 	// connmgr, err := connmgr.NewConnManager(
 	// 	5,  // Lowwater
-	// 	20, // HighWater
-	// 	// connmgr.WithGracePeriod(time.Minute),
+	// 	15, // HighWater
+	// 	connmgr.WithGracePeriod(10*time.Second),
 	// )
 	// utils.Check(err)
 
@@ -223,7 +224,7 @@ func streamHandler(s network.Stream) {
 		tunEnabled = true
 	}
 
-	buf_mtu := make([]byte, 192*1024)
+	buf_mtu := make([]byte, 1500)
 
 	// Start the goroutine with error handling
 	go func() {

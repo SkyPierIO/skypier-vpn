@@ -61,6 +61,10 @@ func QuitSkypier(c *gin.Context) {
 	go func() {
 		time.Sleep(1 * time.Second)
 		HandleExit()
+		log.Println("Enabling back the IPv6 addressing. ")
+		if err := utils.EnableIPv6(); err != nil {
+			log.Fatalf("Error restablishing IPv6 addressing: %v", err)
+		}
 		os.Exit(0)
 	}()
 }
@@ -198,6 +202,10 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		streams[pi.ID] = s
 		streamsMu.Unlock()
 
+		// TODO - Fix the connection manager exception for the current stream
+		// Protect the stream from being closed by the connection manager
+		// node.ConnManager().Protect(peerIdObj, peerId)
+
 		iface := SetInterfaceUp()
 		type Result struct {
 			Res string `json:"result"`
@@ -206,12 +214,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		log.Println(res)
 		c.IndentedJSON(200, Result{Res: res})
 
+		buf_mtu := make([]byte, 1500)
+
 		// Start the loops Rx/Tx in 2 separated goroutines.
-		// go io.Copy(s, iface)
-		// go io.Copy(iface, s)
-
-		buf_mtu := make([]byte, 192*1024)
-
 		/////////////////////////////////
 		// Start the goroutine with error handling
 		go func() {
@@ -244,7 +249,6 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 					// Wrap the stream reader with the length-prefixed reader
 					lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
 					n, err := utils.Copy(iface, lengthPrefixedStream, buf_mtu)
-					// n, err := utils.AltCopy(iface, s)
 					if err != nil {
 						if err.Error() == "short buffer" {
 							continue // 0 bytes copied, continue

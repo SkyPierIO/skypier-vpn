@@ -66,13 +66,10 @@ func GetVPNStatus(c *gin.Context) {
 
 func checkVPNStatus() VPNStatus {
 	interfaceName := "utun8"
-	isUp, err := IsTUNInterfaceUp(interfaceName)
-	if err != nil {
-		fmt.Printf("Error checking interface status: %v\n", err)
-	}
+	isUp, _ := IsTUNInterfaceUp(interfaceName)
 	if isUp {
 		// Gather details about the remote node
-		ip := "10.1.1.2" // TODO: Example IP address, replace with actual logic to get IP
+		ip := "10.1.1.2" // TODO: Example IP address
 
 		// Find the peer ID associated with the active stream
 		var peerID string
