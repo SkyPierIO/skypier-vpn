@@ -6,6 +6,6 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-sleep 5
+sleep 1
 open http://skypier.localhost:8081/ 2> /dev/null
 wait

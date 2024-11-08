@@ -48,8 +48,8 @@ chmod 755 "${DEBIAN_DIR}/postinst"
 
 # Copy files
 cp ./build/skypier-vpn "${BIN_DIR}/"
-cp ./scripts/deb/start.sh "${OPT_DIR}/"
-cp ./scripts/deb/skypier.svg "${OPT_DIR}/"
+cp ./scripts/linux/start.sh "${OPT_DIR}/"
+cp ./scripts/linux/skypier.svg "${OPT_DIR}/"
 
 # Make start.sh executable
 chmod +x "${OPT_DIR}/start.sh"
