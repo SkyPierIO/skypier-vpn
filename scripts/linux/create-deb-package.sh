@@ -26,7 +26,7 @@ Version: ${VERSION}
 Section: net
 Priority: optional
 Architecture: ${ARCH}
-Depends: libc6 (>= 2.7), pkexec
+Depends: libc6 (>= 2.7)
 Maintainer: ${MAINTAINER}
 Description: ${DESCRIPTION}
 EOF

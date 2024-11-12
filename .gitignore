@@ -24,3 +24,10 @@ wip
 *WIP*
 build/*
 config.json
+
+
+# Build releases
+*.deb
+*.rpm
+*.tar.gz
+*.dmg

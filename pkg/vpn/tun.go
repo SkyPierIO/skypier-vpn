@@ -61,16 +61,16 @@ func SetInterfaceDown() error {
 }
 
 // RemoveInterface removes the specified network interface
-func RemoveInterface(ifaceName string) error {
-	link, err := netlink.LinkByName(ifaceName)
-	if err != nil {
-		return fmt.Errorf("failed to get interface by name: %v", err)
-	}
-	if err := netlink.LinkDel(link); err != nil {
-		return fmt.Errorf("failed to delete interface: %v", err)
-	}
-	return nil
-}
+// func RemoveInterface(ifaceName string) error {
+// 	link, err := netlink.LinkByName(ifaceName)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get interface by name: %v", err)
+// 	}
+// 	if err := netlink.LinkDel(link); err != nil {
+// 		return fmt.Errorf("failed to delete interface: %v", err)
+// 	}
+// 	return nil
+// }
 
 func configureTunMacOS(ifaceName, localIP, remoteIP string) error {
 	// Set the local address
