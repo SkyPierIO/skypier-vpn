@@ -16,16 +16,17 @@ func RemoveInterface(ifaceName string) error {
 	}
 
 	cmd := exec.Command("ifconfig", iface.Name, "down")
-	err = cmd.Run()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to bring down interface: %v", err)
+		return fmt.Errorf("failed to bring down interface: %v, output: %s", err, output)
 	}
 
-	// cmd = exec.Command("ifconfig", iface.Name, "destroy")
-	// err = cmd.Run()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to destroy interface: %v", err)
-	// }
+	cmd = exec.Command("ifconfig", iface.Name, "delete")
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("failed to delete interface: %v, output: %s\n", err, output)
+		return nil
+	}
 
 	return nil
 }

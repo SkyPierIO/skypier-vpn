@@ -22,3 +22,11 @@ func RemoveInterface(ifaceName string) error {
 
 	return nil
 }
+
+func SetInterfaceDown() error {
+	link, err := netlink.LinkByName(InterfaceName)
+	if err != nil {
+		return err
+	}
+	return netlink.LinkSetDown(link)
+}

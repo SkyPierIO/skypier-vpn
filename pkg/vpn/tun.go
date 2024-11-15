@@ -52,26 +52,6 @@ func SetInterfaceUp() *water.Interface {
 	return iface
 }
 
-func SetInterfaceDown() error {
-	link, err := netlink.LinkByName(InterfaceName)
-	if err != nil {
-		return err
-	}
-	return netlink.LinkSetDown(link)
-}
-
-// RemoveInterface removes the specified network interface
-// func RemoveInterface(ifaceName string) error {
-// 	link, err := netlink.LinkByName(ifaceName)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to get interface by name: %v", err)
-// 	}
-// 	if err := netlink.LinkDel(link); err != nil {
-// 		return fmt.Errorf("failed to delete interface: %v", err)
-// 	}
-// 	return nil
-// }
-
 func configureTunMacOS(ifaceName, localIP, remoteIP string) error {
 	// Set the local address
 	cmd := exec.Command("ifconfig", ifaceName, "inet", localIP, remoteIP, "up")

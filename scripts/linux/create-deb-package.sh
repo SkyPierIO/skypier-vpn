@@ -3,7 +3,7 @@
 set -e
 
 APP_NAME="skypier-vpn"
-VERSION="0.0.2"
+VERSION="0.1.0"
 ARCH="amd64"
 MAINTAINER="Skypier Technologies <info@skypier.io>"
 DESCRIPTION="Skypier VPN is a decentralized VPN leveraging the libp2p framework, which is also used by IPFS and Ethereum. Skypier VPN relies on relay nodes run by the community. Each contributor is rewarded by sharing his unused bandwidth and IP address. Thanks to the relay node hosts, as a simple user, you can browse the internet safely and anonymously by connecting through a Skypier node (pay your subscription with cryptocurrency). This innovative approach ensures privacy and security while contributing to a decentralized internet infrastructure."

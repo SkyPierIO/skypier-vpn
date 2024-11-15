@@ -47,7 +47,15 @@ func isTUNInterfaceUpMacOS(interfaceName string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return strings.Contains(string(output), interfaceName), nil
+	outputStr := string(output)
+	if !strings.Contains(outputStr, interfaceName) {
+		return false, nil
+	}
+	// check if an IP address is assigned to the interface
+	if !strings.Contains(outputStr, "inet ") {
+		return false, nil
+	}
+	return true, nil
 }
 
 func isTUNInterfaceUpWindows(interfaceName string) (bool, error) {
