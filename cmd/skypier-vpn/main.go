@@ -63,6 +63,18 @@ func main() {
 
 	// CONFIGURATION
 	utils.Greetings("Skypier")
+	configDir := "/etc/skypier"
+	// Check if the directory exists
+	log.Printf("Checking if directory %s exists", configDir)
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		// Create the directory
+		err := os.MkdirAll(configDir, 0755)
+		if err != nil {
+			log.Fatalf("Failed to create directory %s: %v", configDir, err)
+		} else {
+			log.Printf("Directory %s created", configDir)
+		}
+	}
 	utils.InitConfiguration("/etc/skypier/config.json")
 	config, err := utils.LoadConfiguration("/etc/skypier/config.json")
 	utils.Check(err)
