@@ -179,11 +179,13 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peerstore.Decode(peerId)
 		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] Connection error: ", err)
+			log.Println("[+] Peerstor decoding error: Cannot decode Peer ID. ", err)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)
 		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] Connection error: ", err)
+			log.Println("[+] Connection error: dht.FindPeer returns nil while looking for peer ", peerId, err)
+			c.IndentedJSON(404, "Cannot find the peer in the DHT "+peerIdObj.String())
+			return
 		}
 
 		if err := node.Connect(c, pi); err != nil {

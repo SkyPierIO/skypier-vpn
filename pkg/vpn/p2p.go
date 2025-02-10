@@ -23,7 +23,6 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/songgao/water"
 )
 
@@ -134,6 +133,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 			// var dstore datastore.Batching
 			// idht = dht.NewDHTClient(ctx, h, dstore)
 			idht, err = dht.New(ctx, h)
+			log.Println("initializing DHT...")
 			return idht, err
 		}),
 		// add monitoring and force to close old streams
@@ -156,18 +156,19 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// TODO add some bootstrap nodes with TCP && QUIC
 	// TODO avoid having default bootstrap nodes hardcoded here. could be get from an online URI, easier for future update
 
-	ipfsPublicPeer, err := multiaddr.NewMultiaddr("/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb")
-	utils.Check(err)
-	// skypierPublicPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
-	utils.Check(err)
-	skypierBootstrapPeers := [...]multiaddr.Multiaddr{
-		// skypierPublicPeer,
-		ipfsPublicPeer,
-	}
+	// ipfsPublicPeer, err := multiaddr.NewMultiaddr("/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb")
+	// utils.Check(err)
+	// // skypierPublicPeer, err := multiaddr.NewMultiaddr("/ip4/136.244.105.166/udp/4001/quic-v1/p2p/12D3KooWKzmZmLySs5WKBvdxzsctWNsN9abbtnj4PyyqNg9LCyek")
+	// utils.Check(err)
+	// skypierBootstrapPeers := [...]multiaddr.Multiaddr{
+	// 	// skypierPublicPeer,
+	// 	ipfsPublicPeer,
+	// }
 
 	// This connects to public bootstrappers
 	// use `dht.DefaultBootstrapPeers` for IPFS public bootstrap nodes
-	for _, addr := range skypierBootstrapPeers {
+	// use `skypierBootstrapPeers` for Skypier dedicated bootstrap nodes
+	for _, addr := range dht.DefaultBootstrapPeers {
 		pi, _ := peerstore.AddrInfoFromP2pAddr(addr)
 		// We ignore errors as some bootstrap peers may be down
 		// and that is fine.
@@ -181,7 +182,26 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	node.SetStreamHandler("/skypier/1.0", streamHandler)
 	log.Println("Stream handler enabled for protocol /skypier/1.0")
 
-	idht.Bootstrap(ctx)
+	// Bootstrap the DHT to build its routing table
+	if err := idht.Bootstrap(ctx); err != nil {
+		log.Fatalf("Failed to bootstrap DHT: %v", err)
+	}
+
+	// Refresh the DHT routing table
+	// ----------------------------------------------------------
+	// RefreshRoutingTable tells the DHT to refresh it's routing tables.
+	//
+	// The returned channel will block until the refresh finishes,
+	// then yield the error and close. The channel is buffered and safe to ignore.
+	//
+	// ----------------------------------------------------------
+	// log.Println("Refreshing the DHT routing table. Please wait...")
+	// errChan := idht.RefreshRoutingTable()
+	// if err := <-errChan; err != nil {
+	// 	log.Printf("DHT refresh failed: %v", err)
+	// } else {
+	// 	log.Println("DHT refresh completed successfully.")
+	// }
 	idht.RefreshRoutingTable()
 
 	return node, idht, err
