@@ -23,6 +23,7 @@ type Config struct {
 	PrivateKey                string `json:"privateKey"`
 	AdvertisePrivateAddresses bool   `json:"advertisePrivateAddresses"`
 	SwaggerEnabled            bool   `json:"swaggerEnabled"`
+	DHTDiscovery              bool   `json:"dhtDiscovery"`
 }
 
 func LoadConfiguration(file string) (Config, error) {
@@ -33,7 +34,7 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{"MySkypierNode", false, "", false, true}
+		config = Config{"MySkypierNode", false, "", false, true, false}
 		return config, err
 	} else {
 		defer configFile.Close()
@@ -75,7 +76,7 @@ func InitConfiguration(file string) error {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{"MySkypierNode", false, "", false, true}
+		config := Config{"MySkypierNode", false, "", false, true, false}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err

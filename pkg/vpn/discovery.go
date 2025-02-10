@@ -45,7 +45,7 @@ func DiscoverPeersWithKademlia(ctx context.Context, h host.Host, dht *dht.IpfsDH
 						continue
 					}
 					if utils.IsDebugEnabled() {
-						log.Printf("Discoverd new peer %s\n", pID.String())
+						log.Printf("Discovered new peer %s. Found peers: %d\n", pID.String(), len(peers))
 					}
 				}
 			}

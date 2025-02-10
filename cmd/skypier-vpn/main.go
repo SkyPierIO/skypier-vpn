@@ -93,7 +93,9 @@ func main() {
 
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
-	// go vpn.DiscoverPeersWithKademlia(ctx, node, dht)
+	if config.DHTDiscovery {
+		go vpn.DiscoverPeersWithKademlia(ctx, node, dht)
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
