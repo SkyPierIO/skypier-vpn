@@ -63,6 +63,44 @@ func GetConfiguration(c *gin.Context) {
 	c.IndentedJSON(200, configContent)
 }
 
+// UpdateConfig godoc
+// @Summary      Update the configuration
+// @Description  Update the content of the configuration file
+// @Tags         config
+// @Produce      json
+// @Success      200
+// @Failure      400
+// @Failure      404
+// @Failure      500
+// @Router       /updateConfig [get]
+func UpdateConfiguration(c *gin.Context) {
+	var newConfig Config
+
+	log.Println("Updating configuration")
+
+	// Parse the incoming JSON
+	if err := c.ShouldBindJSON(&newConfig); err != nil {
+		log.Println("Invalid JSON", newConfig)
+		c.JSON(400, gin.H{"error": "Invalid JSON"})
+		return
+	}
+
+	// Validate the new configuration (add any specific validation logic if needed)
+	if newConfig.Nickname == "" {
+		c.JSON(400, gin.H{"error": "Nickname is required"})
+		return
+	}
+
+	// Save the new configuration
+	if err := SaveConfig(newConfig); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to save configuration"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Configuration updated successfully"})
+
+}
+
 // TODO set config
 // func SetConfiguration(c *gin.Context) {}
 

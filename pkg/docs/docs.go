@@ -204,6 +204,32 @@ const docTemplate = `{
                 ],
                 "responses": {}
             }
+        },
+        "/updateConfig": {
+            "get": {
+                "description": "Update the content of the configuration file",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "config"
+                ],
+                "summary": "Update the configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
         }
     },
     "externalDocs": {

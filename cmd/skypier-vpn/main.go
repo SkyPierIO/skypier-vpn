@@ -121,6 +121,7 @@ func main() {
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
+	api.POST("/updateConfig", utils.UpdateConfiguration)
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
 	api.GET("/peer/:peerId/info", vpn.GetPeerIPAddresses(node, dht))
 	api.GET("/disconnect/:peerId", vpn.Disconnect(node, dht))

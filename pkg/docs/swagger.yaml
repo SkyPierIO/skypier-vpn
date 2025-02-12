@@ -139,4 +139,21 @@ paths:
       summary: Test the connectivity of a remote host (using Libp2p Connect)
       tags:
       - VPN
+  /updateConfig:
+    get:
+      description: Update the content of the configuration file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Update the configuration
+      tags:
+      - config
 swagger: "2.0"
