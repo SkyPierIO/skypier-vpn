@@ -72,7 +72,7 @@ func GetConfiguration(c *gin.Context) {
 // @Failure      400
 // @Failure      404
 // @Failure      500
-// @Router       /updateConfig [get]
+// @Router       /updateConfig [post]
 func UpdateConfiguration(c *gin.Context) {
 	var newConfig Config
 

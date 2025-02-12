@@ -108,7 +108,9 @@ func main() {
 
 	// React SPA Middleware (must be last middleware declared)
 	router.Use(ui.NewHandler().ServeSPA)
-	log.Printf("VPN UI available at http://skypier.localhost:%d/\n", innerConfig.Port)
+	log.Println("┌────────────────────────────────────────────────────┐")
+	log.Printf("│ VPN UI available at http://skypier.localhost:%d/ │\n", innerConfig.Port)
+	log.Println("└────────────────────────────────────────────────────┘\n")
 
 	// API Router
 	api := router.Group("/api/v0")

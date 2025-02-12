@@ -11,9 +11,9 @@
     Skypier VPN | Decentralized built on top of libp2p
 </h3>
 <p align="center">
-   A more equitable and scalable decentralized network platform that empowers people the freedom to express and explore anonymously without worry of compromising their privacy or quality of access. 
+   A more equitable and scalable decentralized network platform that empowers people the freedom to express and explore anonymously without worry of compromising their privacy or quality of access.
 </p>
-<p align="center"> 
+<p align="center">
     <a href="https://skypier.io">Official website</a>･
     <a href="https://skypier.io">Twitter/X</a>
 </p>
@@ -45,11 +45,11 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 - **Libp2p Integration**: Uses the same network library as Ethereum and various well known Blockchain projects.
 - **Enhanced Security**: Strong encryption and secure communication channels
 - **Privacy**: Ensures user anonymity by routing traffic through nodes hosted by the community all around the world.
-- **Token Gated Service**: We use NFTs for users subscription validity and proof of payment. 
+- **Token Gated Service**: We use NFTs for users subscription validity and proof of payment.
 
 ## ⚠️ Disclaimer
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > This project is under development and should not be used in production environments for security reasons.
 
 ## 📷 UI Screenshot
@@ -62,7 +62,7 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 
 ### Prerequisites
 
-- Go 1.23 or higher
+- Go 1.24 or higher
 - Git
 
 ### Build from sources
@@ -77,7 +77,7 @@ git submodule update --remote
 go build -o skypier-vpn cmd/skypier-vpn/main.go
 ```
 
-2. Run the VPN 
+2. Run the VPN
 
 ```bash
 ./skypier-vpn
@@ -86,7 +86,7 @@ go build -o skypier-vpn cmd/skypier-vpn/main.go
 ### Or install pre-built binary
 
 1. Get the latest release for your Operating System [here](https://github.com/SkyPierIO/skypier-vpn/releases)
-2. Run the installation script 
+2. Run the installation script
 
     ```bash
     sudo ./install.sh
@@ -127,5 +127,3 @@ For any inquiries, please contact us at [info@skypier.Io](mailto://info@skypier.
 ## ⭐️ Support
 
 If you find this project useful, please consider giving it a star on GitHub!
-
-
