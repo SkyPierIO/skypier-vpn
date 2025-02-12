@@ -2,12 +2,10 @@ module github.com/SkyPierIO/skypier-vpn
 
 go 1.24.0
 
-toolchain go1.24.0
-
 require (
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.0
-	github.com/libp2p/go-libp2p v0.39.0
+	github.com/libp2p/go-libp2p v0.39.1
 	github.com/libp2p/go-libp2p-kad-dht v0.29.0
 	github.com/mbndr/figlet4go v0.0.0-20190224160619-d6cef5b186ea
 	github.com/multiformats/go-multiaddr v0.14.0
