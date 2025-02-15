@@ -206,7 +206,7 @@ const docTemplate = `{
             }
         },
         "/updateConfig": {
-            "get": {
+            "post": {
                 "description": "Update the content of the configuration file",
                 "produces": [
                     "application/json"

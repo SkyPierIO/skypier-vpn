@@ -13,11 +13,25 @@ import (
 
 var (
 	localIP       = "10.1.1.1" // TODO remove static IP
-	remoteIP      = "10.1.1.2" // TODO remove static IP
-	InterfaceName = "utun8"
+	remoteIP      string
+	InterfaceName string
 )
 
+func getAvailableTunInterface() (string, string) {
+	for i := 0; i < 256; i++ {
+		ifaceName := fmt.Sprintf("utun%d", i)
+		if _, err := netlink.LinkByName(ifaceName); err != nil {
+			remoteIP := fmt.Sprintf("10.1.1.%d", i+2)
+			return ifaceName, remoteIP
+		}
+	}
+	log.Fatal("No available TUN interface found")
+	return "foo", "bar"
+}
+
 func SetInterfaceUp() *water.Interface {
+	InterfaceName, remoteIP = getAvailableTunInterface()
+
 	config := water.Config{
 		DeviceType: water.TUN,
 	}

@@ -307,8 +307,16 @@ func Disconnect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			return
 		}
 
+		tunIfaceName, err := getCurrentTunInterface()
+		if err != nil {
+			log.Println("[+] Unable to find back the TUN interface : ", err)
+			c.IndentedJSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		log.Println("trying to delete", tunIfaceName)
+
 		// Remove the TUN interface
-		if err := RemoveInterface("utun8"); err != nil {
+		if err := RemoveInterface(tunIfaceName); err != nil {
 			log.Println("[+] Disconnection error: ", err)
 			c.IndentedJSON(500, gin.H{"error": err.Error()})
 			return
