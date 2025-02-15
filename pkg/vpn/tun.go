@@ -32,6 +32,8 @@ func getAvailableTunInterface() (string, string) {
 func SetInterfaceUp() *water.Interface {
 	InterfaceName, remoteIP = getAvailableTunInterface()
 
+	InterfaceName, remoteIP = getAvailableTunInterface()
+
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
