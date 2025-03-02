@@ -6,7 +6,7 @@ require (
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.0
 	github.com/libp2p/go-libp2p v0.41.0
-	github.com/libp2p/go-libp2p-kad-dht v0.29.1
+	github.com/libp2p/go-libp2p-kad-dht v0.29.2
 	github.com/mbndr/figlet4go v0.0.0-20190224160619-d6cef5b186ea
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
@@ -17,7 +17,7 @@ require (
 	golang.org/x/time v0.10.0
 )
 
-require github.com/ipfs/go-datastore v0.7.0 // indirect
+require github.com/ipfs/go-datastore v0.8.0 // indirect
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
