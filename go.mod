@@ -11,6 +11,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/swaggo/files v1.0.1
+	github.com/swaggo/files/v2 v2.0.2
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	github.com/vishvananda/netlink v1.3.0
@@ -149,7 +150,6 @@ require (
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
-	github.com/swaggo/files/v2 v2.0.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
