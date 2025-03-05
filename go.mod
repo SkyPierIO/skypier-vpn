@@ -15,7 +15,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	github.com/vishvananda/netlink v1.3.0
-	golang.org/x/time v0.10.0
+	golang.org/x/time v0.11.0
 )
 
 require github.com/ipfs/go-datastore v0.8.2 // indirect
