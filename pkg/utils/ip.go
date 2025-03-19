@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// isPublicIP checks if the given IP address is public.
+// IsPublicIP checks if the given IP address is public.
 func IsPublicIP(ipStr string) bool {
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
@@ -98,7 +98,7 @@ func PrettyPrintIPHeader(packet []byte, level string) {
 	log.Println(color, "+---------------------+---------------------+", Reset)
 }
 
-// DisableIPv6 disables IPv6 on the host by writing to /proc/sys/net/ipv6/conf/*/disable_ipv6
+// DisableIPv6Linux disables IPv6 on the host by writing to /proc/sys/net/ipv6/conf/*/disable_ipv6
 // Support Linux hosts only at the moment.
 // TODO do MacOS and Windows if still needed
 func DisableIPv6Linux() error {

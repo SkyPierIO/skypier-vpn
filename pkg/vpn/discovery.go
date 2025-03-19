@@ -14,7 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-// DiscoverPeers performs a general Kademlia DHT discovery for Skypier peers.
+// DiscoverPeersWithKademlia performs a general Kademlia DHT discovery for Skypier peers.
 func DiscoverPeersWithKademlia(ctx context.Context, h host.Host, dht *dht.IpfsDHT) {
 	log.Println("Discovering peers with Kademlia DHT...")
 	// Bootstrap the DHT to build its routing table
