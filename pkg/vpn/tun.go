@@ -26,7 +26,7 @@ func getAvailableTunInterface() (string, string) {
 		}
 	}
 	log.Fatal("No available TUN interface found")
-	return "foo", "bar"
+	return "", ""
 }
 
 func SetInterfaceUp() *water.Interface {
