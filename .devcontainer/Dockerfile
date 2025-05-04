@@ -1,48 +1,39 @@
-ARG VARIANT="22-bookworm"
-# FROM mcr.microsoft.com/devcontainers/typescript-node:1-${VARIANT}
+# Base image: Official Go image based on Debian
+FROM golang:1.24.2-bookworm
 
-# Use a multi-stage build to keep the final image small
-# First stage: build the Go application
-FROM golang:latest as builder-go
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN go build -o myapp
+# Set environment variables
+ENV GO111MODULE=on \
+    CGO_ENABLED=1 \
+    GOPATH=/home/user/go \
+    GOMODCACHE=/home/user/go/pkg/mod \
+    PATH=/home/user/go/bin:/usr/local/go/bin:/usr/local/node/bin:$PATH
 
-# Second stage: build the Node.js application
-FROM node:latest as builder-node
-WORKDIR /app
-COPY package*.json ./
-# RUN npm install
-# [Optional] Uncomment if you want to install an additional version
-#  of node using nvm
-ARG EXTRA_NODE_VERSION=18
-RUN su node -c "source /usr/local/share/nvm/nvm.sh \
-    && nvm install ${EXTRA_NODE_VERSION}"
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git build-essential ca-certificates gnupg2 wget iputils-ping tree nmap sudo && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY . .
-RUN npm run build
+# Install Node.js and pnpm
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g pnpm@latest
 
-# Final stage: create the runtime image
-FROM alpine:latest
-# Install necessary packages
-RUN apk add --no-cache nodejs npm
-WORKDIR /root/
-COPY --from=builder-go /app/myapp ./
-COPY --from=builder-node /app/dist ./static
+# Install swag command
+RUN go install github.com/swaggo/swag/cmd/swag@latest
 
-# Expose ports if necessary
-EXPOSE 8080
-# Command to run both applications
-CMD ["./myapp"]
+# Create a non-root user and add to sudoers
+RUN groupadd -g 1000 user && \
+    useradd -m -u 1000 -g 1000 -s /bin/bash user && \
+    echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends npm
+# Ensure the user owns their home directory
+RUN chown -R user:user /home/user
 
-RUN sudo apt-get install gnupg2 -y
+# Set working directory
+WORKDIR /workspace
 
-RUN npm install -g pnpm@latest-10
+# Switch to non-root user
+USER user
 
-# COPY ./customScript.sh /tmp/scripts/customScript.sh
-# RUN apt-get update && bash /tmp/scripts/customScript.sh
+# Expose application ports
+EXPOSE 8081 4002
