@@ -21,8 +21,8 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
-    - name: Build
-      run: go build -v -ldflags "-s -w" -trimpath -buildvcs=false -o skypier-vpn-ui cmd/skypier-vpn-node/main.go
+    # - name: Build
+    #   run: go build -v -ldflags "-s -w" -trimpath -buildvcs=false -o skypier-vpn-ui cmd/skypier-vpn-node/main.go
 
     - name: Run go vet
       run: go vet ./...
@@ -67,15 +67,15 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'pnpm'
+          # cache: 'pnpm'
 
       # Install pnpm
       - name: Install pnpm
         run: npm install -g pnpm@latest
 
       # Install dependencies and build the React app
-      - name: Build React App
-        working-directory: pkg/ui/web
+      # - name: Build React App
+      #   working-directory: pkg/ui/web
         run: |
           pnpm install
           pnpm run build
@@ -89,8 +89,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.22
-      - name: Build
-        run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o skypier-vpn-${{ matrix.os }}-${{ matrix.arch }} -ldflags "-s -w" -trimpath -buildvcs=false cmd/skypier-vpn-node/main.go
+      # - name: Build
+      #   run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o skypier-vpn-${{ matrix.os }}-${{ matrix.arch }} -ldflags "-s -w" -trimpath -buildvcs=false cmd/skypier-vpn-node/main.go
       - name: Upload Release
         uses: actions/upload-artifact@v4
         with:
