@@ -11,13 +11,38 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: 1.24
 
+      # Set up Node.js environment
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    # Install pnpm
+    - name: Install pnpm
+      run: npm install -g pnpm@latest
+
+    # Install dependencies and build the React app
+    - name: Build React App
+      working-directory: pkg/ui/web
+      run: |
+        pnpm install
+        pnpm run build
+
+    # Optional: Display the build output
+    - name: Display build output
+      run: tree --si dist
+      working-directory: pkg/ui/web
+      
     - name: Tidy Go modules
       run: go mod tidy
 
