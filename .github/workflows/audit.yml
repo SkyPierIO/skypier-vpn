@@ -18,6 +18,9 @@ jobs:
       with:
         go-version: 1.24
 
+    - name: Tidy Go modules
+      run: go mod tidy
+
     - name: Verify dependencies
       run: go mod verify
 
@@ -37,7 +40,7 @@ jobs:
       run: golint ./...
 
     - name: Run tests
-      run: go test -race -vet=off ./...
+      run: go test -race -vet=off ./... 
 
   build:
 
