@@ -110,10 +110,11 @@ func main() {
 	router.Use(ui.NewHandler().ServeSPA)
 	log.Println("┌────────────────────────────────────────────────────┐")
 	log.Printf("│ VPN UI available at http://skypier.localhost:%d/ │\n", innerConfig.Port)
-	log.Println("└────────────────────────────────────────────────────┘\n")
+	log.Println("└────────────────────────────────────────────────────┘")
 
 	// API Router
-	api := router.Group("/api/v0")
+	const apiVersion = "/api/v0"
+	api := router.Group(apiVersion)
 	api.GET("/", utils.Ok)
 	api.GET("/id", vpn.GetLocalPeerId(node))
 	api.GET("/me", vpn.GetLocalPeerDetails(node))
@@ -131,7 +132,7 @@ func main() {
 
 	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {
-		docs.SwaggerInfo.BasePath = "/api/v0"
+		docs.SwaggerInfo.BasePath = apiVersion
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 		log.Println("Swagger UI available at http://skypier.localhost:8081/swagger/index.html")
 	}

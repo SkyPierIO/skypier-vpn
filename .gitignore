@@ -31,3 +31,6 @@ config.json
 *.rpm
 *.tar.gz
 *.dmg
+
+# frontend relative ignore
+.pnpm-store

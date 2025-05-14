@@ -132,6 +132,13 @@ func AddDefaultRoute(interfaceName, gateway string) error {
 	}
 	log.Println("Found interface:", iface.Name)
 
+	// Get the default gateway before modifying routes
+	_, defaultGw, _ := getDefaultInterfaceAndGateway()
+	if defaultGw != nil {
+		// Save original routing information for later restoration
+		SaveOriginalRouting(defaultGw.String())
+	}
+
 	// Parse the gateway IP address
 	gw := net.ParseIP(gateway)
 	if gw == nil {

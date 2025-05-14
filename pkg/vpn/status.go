@@ -81,7 +81,7 @@ func getCurrentTunInterface() (string, error) {
 			return ifaceName, nil
 		}
 	}
-	return "", fmt.Errorf("No available TUN interface found")
+	return "", fmt.Errorf("no available TUN interface found")
 }
 
 func checkVPNStatus() VPNStatus {
