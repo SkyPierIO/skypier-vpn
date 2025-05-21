@@ -1,14 +1,14 @@
 package vpn
 
 import (
-	"log"
-	"runtime"
+"log"
+"runtime"
 )
 
 var (
-	// Store original routing information to restore later
-	originalDefaultGateway string
-	isRoutingModified      bool
+// Store original routing information to restore later
+originalDefaultGateway string
+isRoutingModified      bool
 )
 
 // SaveOriginalRouting stores the current default gateway before modifying routes
@@ -38,6 +38,13 @@ func RestoreRouting() error {
 	}
 
 	return err
+}
+
+// CleanupRoutes cleans up routes associated with a specific interface
+// This is a cross-platform wrapper around the CleanupInterfaceRoutes function
+func CleanupRoutes(ifaceName string) error {
+	// Delegate to the cross-platform implementation in routes.go
+	return CleanupInterfaceRoutes(ifaceName)
 }
 
 // Platform specific implementations

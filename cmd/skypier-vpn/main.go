@@ -123,6 +123,7 @@ func main() {
 	api.GET("/status", vpn.GetVPNStatus)
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
+	api.GET("/connections", vpn.GetConnectionsTable)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.POST("/updateConfig", utils.UpdateConfiguration)
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))

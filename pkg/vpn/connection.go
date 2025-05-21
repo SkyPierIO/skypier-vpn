@@ -20,6 +20,9 @@ type ConnectionContext struct {
 	InterfaceName string           // Name of this connection's TUN interface
 	LocalIP       string           // Local IP for this TUN interface
 	RemoteIP      string           // Remote IP for this TUN interface
+	OrigLocalIP   string           // Original local IP (before negotiation)
+	OrigRemoteIP  string           // Original remote IP (before negotiation)
+	IPNegotiated  bool             // Whether IP negotiation has been completed
 	StopChan      chan struct{}    // Channel to signal termination of this connection
 	StopOnce      sync.Once        // Ensures the StopChan is closed only once
 	IsRunning     bool             // Whether the connection is active
@@ -39,6 +42,11 @@ func (conn *ConnectionContext) SafeStreamWrite(data []byte) (int, error) {
 	return conn.Stream.Write(data)
 }
 
+// SafeWrite is an alias for SafeStreamWrite for backward compatibility
+func (conn *ConnectionContext) SafeWrite(data []byte) (int, error) {
+	return conn.SafeStreamWrite(data)
+}
+
 // SafeStreamRead safely reads from the stream, checking if it's closed first
 func (conn *ConnectionContext) SafeStreamRead(p []byte) (int, error) {
 	conn.mutex.RLock()
@@ -49,6 +57,11 @@ func (conn *ConnectionContext) SafeStreamRead(p []byte) (int, error) {
 	}
 
 	return conn.Stream.Read(p)
+}
+
+// SafeRead is an alias for SafeStreamRead for backward compatibility
+func (conn *ConnectionContext) SafeRead(p []byte) (int, error) {
+	return conn.SafeStreamRead(p)
 }
 
 // GetStream safely returns the current stream
@@ -71,6 +84,10 @@ func (conn *ConnectionContext) CloseStream() error {
 	err := conn.Stream.Close()
 	conn.streamClosed = true
 	log.Printf("Stream closed for peer %s", conn.PeerID)
+
+	// Call UnregisterStream for backward compatibility
+	UnregisterStream(conn.Stream)
+
 	return err
 }
 
@@ -89,8 +106,43 @@ func (conn *ConnectionContext) Cleanup() {
 		// Signal all goroutines to stop
 		close(conn.StopChan)
 
-		// If TUN interface exists, we'll leave it to be cleaned up
-		// by the connection manager to avoid concurrent access issues
+		// Release the subnet back to the pool
+		if conn.LocalIP != "" {
+			log.Printf("Releasing subnet for connection %s", conn.PeerID)
+			ReleaseSubnet(conn.LocalIP)
+		}
+
+		// Cleanup routes if needed
+		if conn.Interface != nil && conn.InterfaceName != "" {
+			log.Printf("Cleaning up routes for interface %s", conn.InterfaceName)
+			// Use the cross-platform cleanup function
+			if err := CleanupInterfaceRoutes(conn.InterfaceName); err != nil {
+				log.Printf("Error during route cleanup for interface %s: %v", conn.InterfaceName, err)
+				// Non-fatal error, continue with cleanup
+			}
+		}
+
+		// Clean up the TUN interface
+		if conn.InterfaceName != "" {
+			log.Printf("Cleaning up TUN interface %s", conn.InterfaceName)
+
+			// Platform-specific interface cleanup
+			if err := CleanupTUNInterface(conn.InterfaceName); err != nil {
+				log.Printf("Error cleaning up TUN interface %s: %v", conn.InterfaceName, err)
+			} else {
+				log.Printf("Successfully cleaned up TUN interface %s", conn.InterfaceName)
+			}
+
+			// If interface still exists, close it directly
+			if conn.Interface != nil {
+				if err := conn.Interface.Close(); err != nil {
+					log.Printf("Error closing TUN interface: %v", err)
+				} else {
+					log.Printf("TUN interface closed successfully")
+				}
+				conn.Interface = nil
+			}
+		}
 	})
 }
 
@@ -115,6 +167,7 @@ func NewConnectionContext(peerID peer.ID, stream network.Stream) *ConnectionCont
 		StopChan:     make(chan struct{}),
 		IsRunning:    true,
 		streamClosed: false,
+		IPNegotiated: false,
 	}
 }
 
@@ -140,17 +193,27 @@ func (cm *ConnectionManager) RemoveConnection(peerID peer.ID) {
 	delete(cm.connections, peerID)
 }
 
-// StopConnection stops a connection without removing it
+// StopConnection stops a connection and removes it from the manager
 func (cm *ConnectionManager) StopConnection(peerID peer.ID) bool {
+	// First acquire read lock to check existence
 	cm.mutex.RLock()
-	defer cm.mutex.RUnlock()
+	conn, exists := cm.connections[peerID]
+	cm.mutex.RUnlock()
 
-	if conn, exists := cm.connections[peerID]; exists {
-		// Use the centralized cleanup method
-		conn.Cleanup()
-		return true
+	if !exists {
+		return false
 	}
-	return false
+
+	// Use the centralized cleanup method
+	conn.Cleanup()
+
+	// Now remove from the manager with a write lock
+	cm.mutex.Lock()
+	delete(cm.connections, peerID)
+	cm.mutex.Unlock()
+
+	log.Printf("Connection for peer %s has been stopped and removed from manager", peerID)
+	return true
 }
 
 // StopAllConnections stops all active connections

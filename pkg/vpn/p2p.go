@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strings"
+	"time"
 
 	b64 "encoding/base64"
 
@@ -16,6 +17,7 @@ import (
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
 
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
@@ -67,8 +69,24 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	resourceManager, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 	utils.Check(err)
 
+	// Configure connection manager with limits
+	// Set a low limit for maximum number of peers to connect to (much less than the default 25)
+	log.Printf("Configuring connection manager with strict limits: LowWater=3, HighWater=10")
+	connMgr, err := connmgr.NewConnManager(
+		3,  // LowWater - below this we'll accept new connections
+		10, // HighWater - above this we'll prune connections
+		connmgr.WithGracePeriod(time.Second*30), // Much shorter grace period - 30 seconds instead of 5 minutes
+		connmgr.WithEmergencyTrim(true),         // Allow emergency trimming if we run out of file descriptors
+	)
+	if err != nil {
+		log.Printf("Failed to create connection manager: %v", err)
+		return nil, nil, err
+	}
+	log.Printf("Successfully configured libp2p connection manager: max peers=10, grace period=30s")
+
 	var idht *dht.IpfsDHT
 
+	// Create libp2p node with our connection manager
 	node, err := libp2p.New(
 		// Multiple listen addresses
 		libp2p.ListenAddrStrings(
@@ -83,10 +101,17 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		libp2p.Transport(tcp.NewTCPTransport),
 		libp2p.NATPortMap(),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			idht, err = dht.New(ctx, h)
-			log.Println("initializing DHT...")
+			// Configure DHT with options to limit connection usage
+			idht, err = dht.New(ctx, h,
+				dht.Mode(dht.ModeClient),               // Client mode doesn't store or provide records
+				dht.Concurrency(2),                     // Limit concurrent queries
+				dht.QueryFilter(dht.PublicQueryFilter), // Only use public addresses
+			)
+			log.Println("initializing DHT with limited concurrency...")
 			return idht, err
 		}),
+		// Add the connection manager to limit max peers to 10 (HighWater mark)
+		libp2p.ConnectionManager(connMgr),
 		libp2p.ResourceManager(resourceManager),
 		libp2p.Ping(true),
 	)
@@ -99,11 +124,25 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		log.Println(sEnc)
 	}
 
-	// Connect to bootstrap peers
-	for _, addr := range dht.DefaultBootstrapPeers {
+	// Connect to a limited number of bootstrap peers
+	// We'll connect to just a few bootstrap peers to avoid exceeding our connection limit
+	bootstrapPeers := dht.DefaultBootstrapPeers
+	maxBootstrapPeers := 3 // Limit to 3 bootstrap peers to stay under our connection limits
+
+	if len(bootstrapPeers) > maxBootstrapPeers {
+		bootstrapPeers = bootstrapPeers[:maxBootstrapPeers]
+	}
+
+	log.Printf("Connecting to %d bootstrap peers (limited from %d default)",
+		len(bootstrapPeers), len(dht.DefaultBootstrapPeers))
+
+	for _, addr := range bootstrapPeers {
 		pi, _ := peerstore.AddrInfoFromP2pAddr(addr)
 		err := node.Connect(ctx, *pi)
-		utils.Check(err)
+		if err != nil {
+			log.Printf("Failed to connect to bootstrap peer %s: %v", pi.ID, err)
+			continue
+		}
 		log.Println("Connected to bootstrap peer: ", pi.ID)
 	}
 
@@ -113,11 +152,12 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	log.Println("Stream handler enabled for protocol /skypier/1.0")
 
 	// Bootstrap the DHT to build its routing table
-	if err := idht.Bootstrap(ctx); err != nil {
-		log.Fatalf("Failed to bootstrap DHT: %v", err)
-	}
+	// if err := idht.Bootstrap(ctx); err != nil {
+	// 	log.Fatalf("Failed to bootstrap DHT: %v", err)
+	// }
 
-	idht.RefreshRoutingTable()
+	// Refresh the routing table to help discover peers
+	// idht.RefreshRoutingTable()
 
 	return node, idht, err
 }
@@ -153,6 +193,14 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 
 	node, dht, err := StartNode(config, privKey, tcpPort, udpPort)
 	utils.Check(err)
+
+	// Set up stream watcher to monitor for disconnections
+	streamWatcher := NewStreamWatcher(connectionManager)
+	notifyBundle := &network.NotifyBundle{}
+	streamWatcher.RegisterHost(ctx, notifyBundle)
+	node.Network().Notify(notifyBundle)
+	log.Println("Registered stream watcher to handle peer disconnections")
+
 	displayNodeInfo(node)
 
 	return node, dht
@@ -160,17 +208,51 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 
 // streamHandler handles incoming streams for the "/skypier/1.0" protocol
 func streamHandler(s network.Stream) {
-	log.Println("Starting the stream handler for peer:", s.Conn().RemotePeer())
-	log.Println("node status", utils.IS_NODE_HOST)
+	peerID := s.Conn().RemotePeer()
+	log.Printf("Starting the stream handler for peer: %s", peerID)
+	log.Printf("Node status: %v (true=server, false=client)", utils.IS_NODE_HOST)
+
+	// Check if we already have a connection to this peer
+	if existingConn, exists := connectionManager.GetConnection(peerID); exists && existingConn.IsRunning {
+		log.Printf("Connection already exists for peer %s, closing new stream", peerID)
+		s.Close()
+		return
+	}
 
 	// Create a new connection context for this stream
-	conn := NewConnectionContext(s.Conn().RemotePeer(), s)
+	conn := NewConnectionContext(peerID, s)
+	log.Printf("Created new connection context for peer %s", peerID)
 
 	// Create a dedicated TUN interface for this connection
 	conn.Interface, conn.InterfaceName, conn.LocalIP, conn.RemoteIP = SetInterfaceUpForConnection()
+	log.Printf("Created TUN interface %s with IPs local=%s, remote=%s",
+		conn.InterfaceName, conn.LocalIP, conn.RemoteIP)
 
 	// Add the connection to our manager
 	connectionManager.AddConnection(conn)
+	log.Printf("Added connection to connection manager")
+
+	// Handle IP negotiation with retries - as the server side
+	log.Printf("Starting IP negotiation as server for peer %s", peerID)
+	const maxRetries = 3 // Maximum number of negotiation attempts
+	localIP, remoteIP, err := RetryNegotiateIPs(conn, "server", maxRetries)
+	if err != nil {
+		log.Printf("IP negotiation failed after retries: %v", err)
+		conn.Cleanup()
+		return
+	}
+	log.Printf("IP negotiation successful: local=%s, remote=%s", localIP, remoteIP)
+
+	// Validate the negotiated IPs
+	validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
+	if err != nil {
+		log.Printf("IP validation failed for peer %s: %v", peerID, err)
+		conn.Cleanup()
+		return
+	}
+
+	log.Printf("Validated IPs for peer %s: local=%s, remote=%s",
+		peerID, validatedLocalIP, validatedRemoteIP)
 
 	buf_mtu := make([]byte, 1500)
 

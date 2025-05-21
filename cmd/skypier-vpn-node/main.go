@@ -84,6 +84,7 @@ func main() {
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.GET("/connect/:peerId", vpn.Connect(node, dht))
+	api.GET("/connections", vpn.GetConnectionsTable)
 
 	// Run with HTTP
 	err := router.Run("127.0.0.1:" + strconv.FormatUint(uint64(innerConfig.Port), 10))

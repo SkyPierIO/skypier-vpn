@@ -1,4 +1,38 @@
 basePath: /api/v0
+definitions:
+  vpn.ConnectionDetails:
+    properties:
+      connectedAt:
+        description: Time when the connection was established
+        type: string
+      interfaceName:
+        description: Name of the TUN interface
+        type: string
+      ipNegotiated:
+        description: Whether IP negotiation has been completed
+        type: boolean
+      isRunning:
+        description: Whether the connection is active
+        type: boolean
+      localIp:
+        description: Local IP for this TUN interface
+        type: string
+      origLocalIp:
+        description: Original local IP (before negotiation)
+        type: string
+      origRemoteIp:
+        description: Original remote IP (before negotiation)
+        type: string
+      peerId:
+        description: ID of the connected peer
+        type: string
+      remoteIp:
+        description: Remote IP for this TUN interface
+        type: string
+      streamActive:
+        description: Whether the stream is active (not closed)
+        type: boolean
+    type: object
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/
@@ -48,6 +82,22 @@ paths:
       - application/json
       responses: {}
       summary: Get the ConnectedPeers Count
+      tags:
+      - VPN
+  /connections:
+    get:
+      description: Returns a table of all VPN connections with details including peer
+        IDs, IP addresses and status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/vpn.ConnectionDetails'
+            type: array
+      summary: Get all VPN connections
       tags:
       - VPN
   /getConfig:

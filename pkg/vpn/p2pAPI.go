@@ -105,17 +105,31 @@ func QuitSkypier(c *gin.Context) {
 // @Router       /connected_peers_count [get]
 func GetConnectedPeersCount(node host.Host, mydht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		peers := mydht.RoutingTable().ListPeers()
-		connectedPeers := 0
+		// Get actual libp2p connections from the node
+		// This reflects the connections limited by the connection manager
+		connectedPeers := node.Network().Peers()
+		actualConnections := len(connectedPeers)
 
-		for _, pID := range peers {
-			if node.Network().Connectedness(pID) == network.Connected {
-				connectedPeers++
-			}
-		}
+		// For reference, also get routing table peers
+		routingTablePeers := len(mydht.RoutingTable().ListPeers())
+
+		// Get active VPN connections for reference
+		activeVPNConnections := connectionManager.GetActiveConnectionsCount()
+
+		log.Printf("Connected peers: %d (libp2p), %d (routing table), %d (active VPN)",
+			actualConnections, routingTablePeers, activeVPNConnections)
 
 		c.JSON(http.StatusOK, gin.H{
-			"connected_peers_count": connectedPeers,
+			"connected_peers_count":  actualConnections,    // Use actual connections count
+			"libp2p_connections":     actualConnections,    // Same as connected_peers_count
+			"routing_table_peers":    routingTablePeers,    // DHT routing table size
+			"active_vpn_connections": activeVPNConnections, // VPN tunnels only
+			"max_connections":        10,                   // Our configured high water mark
+			"conn_mgr_config": map[string]interface{}{
+				"low_water_mark":  3,
+				"high_water_mark": 10,
+				"grace_period":    "30s",
+			},
 		})
 	}
 	return gin.HandlerFunc(fn)
@@ -231,27 +245,66 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			return
 		}
 
-		// Create a new stream
+		// Create a new stream with the Skypier protocol
+		log.Printf("Creating new stream to peer %s with protocol /skypier/1.0", pi.ID)
 		s, err := node.NewStream(c, pi.ID, "/skypier/1.0")
 		if err != nil {
 			log.Println("Error creating stream:", err)
 			c.IndentedJSON(500, gin.H{"error": err.Error()})
 			return
 		}
+		log.Printf("Stream created successfully to peer %s", pi.ID)
 
-		// Create a new connection context
+		// Create a new connection context to track this connection
 		conn := NewConnectionContext(pi.ID, s)
 
-		// Set up a dedicated TUN interface for this connection
+		// First create a TUN interface with temporary values
 		conn.Interface, conn.InterfaceName, conn.LocalIP, conn.RemoteIP = SetInterfaceUpForConnection()
 
 		// Add the connection to our manager
 		connectionManager.AddConnection(conn)
 
+		// Negotiate IP addresses with the server - as the client side
+		const maxRetries = 3 // Maximum number of negotiation attempts
+		log.Printf("Starting IP negotiation as client with up to %d retries", maxRetries)
+		localIP, remoteIP, err := RetryNegotiateIPs(conn, "client", maxRetries)
+		if err != nil {
+			log.Printf("IP negotiation failed after retries: %v", err)
+			conn.CloseStream()
+			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("IP negotiation failed after %d attempts: %v", maxRetries, err)})
+			return
+		}
+
+		log.Printf("IP negotiation successful: local=%s, remote=%s", localIP, remoteIP)
+
+		// Validate and update the connection with negotiated IPs
+		validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
+		if err != nil {
+			log.Printf("IP validation failed: %v", err)
+			conn.CloseStream()
+			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("IP validation failed: %v", err)})
+			return
+		}
+
+		// Use the validated IPs
+		conn.LocalIP = validatedLocalIP
+		conn.RemoteIP = validatedRemoteIP
+
+		// Update the TUN interface with the negotiated IP
+		if err := UpdateInterfaceIP(conn.InterfaceName, localIP, remoteIP); err != nil {
+			log.Printf("Failed to update interface IP: %v", err)
+			conn.CloseStream()
+			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("Failed to update interface IP: %v", err)})
+			return
+		}
+
+		log.Printf("Updated interface %s with negotiated IPs: local=%s, remote=%s", conn.InterfaceName, localIP, remoteIP)
+
 		// Send response to the client
-		res := fmt.Sprintf("Connected to the destination & `%v` VPN interface created.", conn.InterfaceName)
+		res := fmt.Sprintf("Connected to the destination & `%v` VPN interface created with IPs %s (local) and %s (remote).",
+			conn.InterfaceName, localIP, remoteIP)
 		log.Println(res)
-		c.IndentedJSON(200, gin.H{"result": res})
+		c.IndentedJSON(200, gin.H{"result": res, "local_ip": localIP, "remote_ip": remoteIP})
 
 		// Create buffer for data transfer
 		buf_mtu := make([]byte, 1500)
@@ -278,7 +331,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 						}
 						log.Printf("🚨🚨🚨 Error copying data: %v", err)
 						if shouldCloseStream(err) {
-							connectionManager.StopConnection(conn.PeerID)
+							// Use the stream watcher to handle the connection error properly
+							streamWatcher := NewStreamWatcher(connectionManager)
+							streamWatcher.OnConnectionError(conn.PeerID, err)
 							return
 						}
 					}
@@ -323,16 +378,16 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 					}
 				}
 			}
-		}()
-
-		// Add routing for this specific connection
+		}() // Add routing for this specific connection
 		if err := AddEndpointRoute(node, dht, c.Param("peerId")); err != nil {
-			log.Fatalf("Error adding static route for the VPN endpoint: %v", err)
+			log.Printf("Error adding static route for the VPN endpoint: %v", err)
+			// Don't fatal here, just log the error
 		}
 
-		// Add default route for this connection
+		// Add default route for this connection using the negotiated IPs
 		if err := AddDefaultRoute(conn.InterfaceName, conn.RemoteIP); err != nil {
-			log.Fatalf("Error adding routes (traffic redirection): %v", err)
+			log.Printf("Error adding routes (traffic redirection): %v", err)
+			// Don't fatal here, just log the error
 		}
 	}
 	return gin.HandlerFunc(fn)

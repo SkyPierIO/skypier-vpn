@@ -27,8 +27,9 @@ func IsTUNInterfaceUp(interfaceName string) (bool, error) {
 		return isTUNInterfaceUpLinux(interfaceName)
 	case "darwin":
 		return isTUNInterfaceUpMacOS(interfaceName)
-	case "windows":
-		return isTUNInterfaceUpWindows(interfaceName)
+	// Note: Windows support is not implemented yet
+	// case "windows":
+	// 	return isTUNInterfaceUpWindows(interfaceName)
 	default:
 		return false, fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
