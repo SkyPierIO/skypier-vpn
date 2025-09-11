@@ -1,0 +1,344 @@
+Network Working Group                                         Skypier Team
+Request for Comments: XXXX                                      Skypier.io
+Category: Experimental                                      September 2025
+
+
+            Skypier VPN: A Decentralized VPN Protocol Suite
+                         over libp2p Networks
+
+Abstract
+
+   This document describes the Skypier VPN protocol suite, a 
+   decentralized virtual private network implementation built on top 
+   of the libp2p networking library. The protocol suite consists of 
+   two main protocols: the IP Negotiation Protocol and the VPN Data 
+   Transfer Protocol, both operating over libp2p streams.
+
+Table of Contents
+
+   1. Introduction
+   2. Protocol Architecture
+   3. IP Negotiation Protocol
+   4. VPN Data Transfer Protocol
+   5. Security Considerations
+   6. IANA Considerations
+   7. References
+
+1. Introduction
+
+   Skypier VPN implements a peer-to-peer virtual private network using
+   libp2p as the underlying transport layer. The system enables direct
+   encrypted tunneling between peers without relying on centralized
+   infrastructure.
+
+   The protocol suite defines:
+   - IP address negotiation between VPN peers
+   - Secure data transfer over established tunnels
+   - Connection lifecycle management
+   - Peer discovery and routing
+
+2. Protocol Architecture
+
+   The Skypier VPN architecture consists of multiple layers:
+
+   ┌─────────────────────────────────────────────────────────────┐
+   │                    Application Layer                        │
+   ├─────────────────────────────────────────────────────────────┤
+   │                    TUN Interface                            │
+   ├─────────────────────────────────────────────────────────────┤
+   │              Skypier VPN Protocol Suite                     │
+   │  ┌──────────────────────┐  ┌──────────────────────────────┐ │
+   │  │  IP Negotiation      │  │    VPN Data Transfer         │ │
+   │  │    Protocol          │  │       Protocol               │ │
+   │  │   (/skypier/1.0)     │  │    (/skypier/1.0)            │ │
+   │  └──────────────────────┘  └──────────────────────────────┘ │
+   ├─────────────────────────────────────────────────────────────┤
+   │                    libp2p Framework                         │
+   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐    │
+   │  │   QUIC   │ │   TCP    │ │   DHT    │ │  Connection  │    │
+   │  │Transport │ │Transport │ │ Routing  │ │  Manager     │    │
+   │  └──────────┘ └──────────┘ └──────────┘ └──────────────┘    │
+   ├─────────────────────────────────────────────────────────────┤
+   │                    Network Layer                            │
+   └─────────────────────────────────────────────────────────────┘
+
+2.1 Protocol Identification
+
+   Both protocols use the libp2p protocol identifier "/skypier/1.0".
+   
+   Stream differentiation occurs through:
+   - Initial handshake message content
+   - Stream usage patterns (JSON negotiation vs. binary data)
+
+2.2 Connection Lifecycle
+
+   ┌───────────┐                                 ┌───────────┐
+   │  Client   │                                 │  Server   │
+   └─────┬─────┘                                 └─────┬─────┘
+         │                                             │
+         │    1. libp2p Stream Establishment           │
+         ├────────────────────────────────────────────→│
+         │                                             │
+         │    2. IP Negotiation Protocol               │
+         ├────────────────────────────────────────────→│
+         │                                             │
+         │    3. IP Assignment Response                │
+         │←────────────────────────────────────────────┤
+         │                                             │
+         │    4. TUN Interface Configuration           │
+         ├─────┐                                 ┌─────┤
+         │     │                                 │     │
+         ├─────┘                                 └─────┤
+         │                                             │
+         │    5. VPN Data Transfer Protocol            │
+         ├←───────────────────────────────────────────→│
+         │         (Bidirectional Data Flow)          │
+         │                                             │
+
+3. IP Negotiation Protocol
+
+3.1 Overview
+
+   The IP Negotiation Protocol handles the assignment and validation of
+   virtual IP addresses between VPN peers. It operates over JSON
+   messages exchanged through libp2p streams.
+
+3.2 Message Format
+
+   All IP negotiation messages are JSON objects with the following
+   structure:
+
+   {
+     "local_ip": "<assigned_local_ip>",
+     "remote_ip": "<assigned_remote_ip>",
+     "subnet": "<subnet_mask>",
+     "role": "<client|server>"
+   }
+
+3.3 Message Fields
+
+   local_ip:   The IP address assigned to the sending peer
+   remote_ip:  The IP address assigned to the receiving peer
+   subnet:     Subnet mask in CIDR notation (typically "24")
+   role:       Role of the sending peer ("client" or "server")
+
+3.4 Protocol Flow
+
+   Client Initiation:
+   ┌─────────────────────────────────────────────────────────────┐
+   │ Step 1: Generate IP pair (typically 10.0.0.x/24 range)     │
+   │ Step 2: Create negotiation message with role="client"      │
+   │ Step 3: Serialize to JSON and send over libp2p stream      │
+   └─────────────────────────────────────────────────────────────┘
+
+   Server Response:
+   ┌─────────────────────────────────────────────────────────────┐
+   │ Step 1: Receive and parse client negotiation message       │
+   │ Step 2: Validate proposed IP addresses                     │
+   │ Step 3: Swap local_ip and remote_ip for server perspective │
+   │ Step 4: Send response with role="server"                   │
+   └─────────────────────────────────────────────────────────────┘
+
+3.5 Example Exchange
+
+   Client → Server:
+   {
+     "local_ip": "10.0.0.1",
+     "remote_ip": "10.0.0.2", 
+     "subnet": "24",
+     "role": "client"
+   }
+
+   Server → Client:
+   {
+     "local_ip": "10.0.0.2",
+     "remote_ip": "10.0.0.1",
+     "subnet": "24", 
+     "role": "server"
+   }
+
+3.6 Error Handling
+
+   The protocol implements retry mechanisms with exponential backoff:
+   - Maximum 3 retry attempts
+   - Initial timeout: 5 seconds
+   - Backoff multiplier: 2x per retry
+   - Connection context cancellation on failure
+
+3.7 IP Address Validation
+
+   Valid IP ranges for negotiation:
+   - 10.0.0.0/8    (RFC 1918 - Private networks)
+   - 172.16.0.0/12 (RFC 1918 - Private networks)
+   - 192.168.0.0/16 (RFC 1918 - Private networks)
+
+4. VPN Data Transfer Protocol
+
+4.1 Overview
+
+   The VPN Data Transfer Protocol handles the tunneling of IP packets
+   between peers over established libp2p streams. It operates in a
+   bidirectional mode after successful IP negotiation.
+
+4.2 Packet Encapsulation
+
+   Raw IP packets from the TUN interface are transmitted directly
+   over the libp2p stream without additional encapsulation:
+
+   ┌─────────────────────────────────────────────────────────────┐
+   │                    Original IP Packet                       │
+   │ ┌─────────────────┐ ┌─────────────────────────────────────┐ │
+   │ │   IP Header     │ │          Payload Data               │ │
+   │ │   (20+ bytes)   │ │         (Variable Length)          │ │
+   │ └─────────────────┘ └─────────────────────────────────────┘ │
+   └─────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+   ┌─────────────────────────────────────────────────────────────┐
+   │                   libp2p Stream Transport                   │
+   │                     (Encrypted Channel)                     │
+   └─────────────────────────────────────────────────────────────┘
+
+4.3 Data Flow Architecture
+
+   TUN Interface → VPN Protocol → libp2p Stream:
+
+   ┌─────────────┐    read()     ┌─────────────┐    Write()    ┌─────────────┐
+   │     TUN     │──────────────→│    Buffer   │──────────────→│   libp2p    │
+   │  Interface  │               │   (4096B)   │               │   Stream    │
+   │             │←──────────────│             │←──────────────│             │
+   └─────────────┘    write()    └─────────────┘    Read()     └─────────────┘
+
+4.4 Buffer Management
+
+   - Read buffer size: 4096 bytes (optimized for MTU + headers)
+   - Write operations are blocking until completion
+   - Error handling includes stream closure detection
+   - Automatic retry on recoverable errors
+
+4.5 Bidirectional Data Loops
+
+   Each VPN connection maintains two goroutines:
+
+   Goroutine 1 (TUN → Stream):
+   ```
+   for {
+     packet := tun.Read(4096)
+     if packet != nil {
+       stream.Write(packet)
+     }
+   }
+   ```
+
+   Goroutine 2 (Stream → TUN):
+   ```
+   for {
+     packet := stream.Read(4096)
+     if packet != nil {
+       tun.Write(packet)
+     }
+   }
+   ```
+
+4.6 IP Packet Structure
+
+   Standard IPv4 packets are transmitted with the following header:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   ┌───┬───────┬───────────────┬─────────────────────────────────────┐
+   │Ver│  IHL  │Type of Service│          Total Length               │
+   ├───┴───────┼───────────────┼─────────────┬───────────────────────┤
+   │           │               │    Flags    │      Fragment Offset  │
+   │     Identification        │             │                       │
+   ├───────────┼───────────────┼─────────────┴───────────────────────┤
+   │Time to Live│   Protocol   │         Header Checksum             │
+   ├───────────┴───────────────┼─────────────────────────────────────┤
+   │                           │                                     │
+   │        Source Address                                           │
+   ├───────────────────────────┴─────────────────────────────────────┤
+   │                                                                 │
+   │      Destination Address                                        │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                     Options                    │    Padding     │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                                                                 │
+   │                          Data                                   │
+   │                                                                 │
+   └─────────────────────────────────────────────────────────────────┘
+
+   Key fields for VPN operation:
+   - Source Address: Negotiated peer IP (e.g., 10.0.0.1)
+   - Destination Address: Target peer IP (e.g., 10.0.0.2)
+   - Protocol: Indicates payload type (TCP=6, UDP=17, ICMP=1)
+   - Total Length: Used for packet boundary detection
+
+4.7 Stream Lifecycle Management
+
+   Connection Context Structure:
+   - Stream reference with thread-safe access
+   - Cancel context for graceful shutdown
+   - Connection state tracking
+   - Error counters and retry logic
+
+   Stream Safety Features:
+   - Mutex-protected stream operations
+   - Atomic state management
+   - Graceful degradation on errors
+   - Automatic cleanup on disconnection
+
+5. Security Considerations
+
+5.1 Transport Security
+
+   All Skypier VPN communications benefit from libp2p's built-in
+   security features:
+   - Automatic encryption via libp2p security protocols
+   - Peer authentication using cryptographic identities
+   - Forward secrecy through ephemeral key exchanges
+
+5.2 IP Address Security
+
+   - Virtual IP addresses are isolated from host networking
+   - No automatic routing to external networks
+   - TUN interface provides kernel-level isolation
+   - Private IP ranges prevent accidental exposure
+
+5.3 Known Limitations
+
+   - No application-layer authentication beyond libp2p
+   - Susceptible to traffic analysis at the packet level
+   - No built-in protection against malicious peers
+   - Relies on libp2p's peer discovery security
+
+6. IANA Considerations
+
+   This document defines protocols that operate entirely within the
+   libp2p protocol space and do not require IANA protocol number
+   assignments. The "/skypier/1.0" protocol identifier follows
+   libp2p naming conventions.
+
+   Private IP address ranges used conform to RFC 1918 allocations.
+
+7. References
+
+7.1 Normative References
+
+   [RFC1918]   Rekhter, Y., et al., "Address Allocation for Private
+               Internets", RFC 1918, February 1996.
+
+   [RFC791]    Postel, J., "Internet Protocol", STD 5, RFC 791,
+               September 1981.
+
+7.2 Informative References
+
+   [LIBP2P]    libp2p Specification, https://libp2p.io/
+
+   [KADEMLIA]  Maymounkov, P. and D. Mazières, "Kademlia: A Peer-to-
+               peer Information System Based on the XOR Metric", 2002.
+
+Authors' Addresses
+
+   Skypier Development Team
+   Email: info@skypier.io
+   URI:   https://skypier.io

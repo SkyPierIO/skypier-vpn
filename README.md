@@ -62,7 +62,7 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 
 ### Prerequisites
 
-- Go 1.24 or higher
+- Go 1.25 or higher
 - Git
 
 ### Build from sources
