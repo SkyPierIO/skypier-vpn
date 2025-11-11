@@ -23,22 +23,21 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
-	"github.com/songgao/water"
 )
 
 var (
-	tunEnabled bool
-	nodeIface  *water.Interface
-	stopChan   = make(chan struct{})
+	// tunEnabled bool
+	// nodeIface  *water.Interface
+	stopChan = make(chan struct{})
 	// Connection manager to handle multiple concurrent clients
 	connectionManager = NewConnectionManager()
 )
 
-func handleCloseStreamHandler() {
-	closeOnce.Do(func() {
-		close(stopChan)
-	})
-}
+// func handleCloseStreamHandler() {
+// 	closeOnce.Do(func() {
+// 		close(stopChan)
+// 	})
+// }
 
 func displayNodeInfo(node host.Host) {
 	// print node ID
@@ -71,11 +70,11 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 
 	// Configure connection manager with limits
 	// Set a low limit for maximum number of peers to connect to (much less than the default 25)
-	log.Printf("Configuring connection manager with strict limits: LowWater=3, HighWater=10")
+	log.Printf("Configuring connection manager with strict limits: LowWater=5, HighWater=15")
 	connMgr, err := connmgr.NewConnManager(
-		3,  // LowWater - below this we'll accept new connections
-		10, // HighWater - above this we'll prune connections
-		connmgr.WithGracePeriod(time.Second*30), // Much shorter grace period - 30 seconds instead of 5 minutes
+		5,  // LowWater - below this we'll accept new connections
+		15, // HighWater - above this we'll prune connections
+		connmgr.WithGracePeriod(time.Second*10), // Much shorter grace period - 30 seconds instead of 5 minutes
 		connmgr.WithEmergencyTrim(true),         // Allow emergency trimming if we run out of file descriptors
 	)
 	if err != nil {
