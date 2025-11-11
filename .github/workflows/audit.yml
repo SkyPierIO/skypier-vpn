@@ -11,18 +11,43 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.22
+        go-version: 1.24
+
+      # Set up Node.js environment
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    # Install pnpm
+    - name: Install pnpm
+      run: npm install -g pnpm@latest
+
+    # Install dependencies and build the React app
+    - name: Build React App
+      working-directory: pkg/ui/web
+      run: |
+        pnpm install
+        pnpm run build
+
+    # Optional: Display the build output
+    - name: Display build output
+      run: tree --si dist
+      working-directory: pkg/ui/web
+      
+    - name: Tidy Go modules
+      run: go mod tidy
 
     - name: Verify dependencies
       run: go mod verify
-
-    - name: Build
-      run: go build -v -ldflags "-s -w" -trimpath -buildvcs=false -o skypier-vpn-ui cmd/skypier-vpn-node/main.go
 
     - name: Run go vet
       run: go vet ./...
@@ -40,14 +65,15 @@ jobs:
       run: golint ./...
 
     - name: Run tests
-      run: go test -race -vet=off ./...
+      run: go test -race -vet=off ./... 
 
   build:
 
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ['amd64', '386', 'arm64']
+        arch: ['amd64', 'arm64']
+        # arch: ['amd64', '386', 'arm64']
         # os: ['linux', 'windows', 'darwin']
         os: ['linux']
         # exclude:
@@ -55,7 +81,35 @@ jobs:
         #     os: darwin
 
     steps:
-      - uses: actions/checkout@v4
+      # Checkout the repository and submodules
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          # cache: 'pnpm'
+
+      # Install pnpm
+      - name: Install pnpm
+        run: npm install -g pnpm@latest
+
+      # Install dependencies and build the React app
+      - name: Build React App
+        working-directory: pkg/ui/web
+        run: |
+          pnpm install
+          pnpm run build
+
+      # Optional: Display the build output
+      - name: Display build output
+        run: tree --si dist
+        working-directory: pkg/ui/web
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
