@@ -108,6 +108,31 @@ func AddEndpointRoute(node host.Host, dht *dht.IpfsDHT, peerId string) error {
 	return nil
 }
 
+// OS-independent route management functions
+
+// CleanupInterfaceRoutes removes all routes associated with the given interface
+// It delegates to OS-specific implementations internally
+func CleanupInterfaceRoutes(interfaceName string) error {
+	if interfaceName == "" {
+		log.Printf("No interface name provided for route cleanup")
+		return nil
+	}
+
+	log.Printf("Cleaning up routes for interface %s", interfaceName)
+
+	// Delegate to OS-specific implementations
+	// These are defined in the OS-specific files with build constraints
+	err := cleanupInterfaceRoutesOSSpecific(interfaceName)
+
+	if err != nil {
+		log.Printf("Failed to clean up routes for interface %s: %v", interfaceName, err)
+	} else {
+		log.Printf("Successfully cleaned up routes for interface %s", interfaceName)
+	}
+
+	return err
+}
+
 // func AddDefaultRoute(interfaceName, gateway string) error {
 // 	// Get the network interface by name
 // 	iface, err := netlink.LinkByName(interfaceName)

@@ -132,6 +132,13 @@ func AddDefaultRoute(interfaceName, gateway string) error {
 	}
 	log.Println("Found interface:", iface.Name)
 
+	// Get the default gateway before modifying routes
+	_, defaultGw, _ := getDefaultInterfaceAndGateway()
+	if defaultGw != nil {
+		// Save original routing information for later restoration
+		SaveOriginalRouting(defaultGw.String())
+	}
+
 	// Parse the gateway IP address
 	gw := net.ParseIP(gateway)
 	if gw == nil {
@@ -160,5 +167,53 @@ func AddDefaultRoute(interfaceName, gateway string) error {
 		log.Printf("Successfully added route %s via %s on interface %s", route, gateway, interfaceName)
 	}
 
+	return nil
+}
+
+// cleanupRoutesDarwinOriginal is the Darwin-specific implementation for route cleanup (DEPRECATED)
+func cleanupRoutesDarwinOriginal(ifaceName string) error {
+	log.Printf("Cleaning up macOS routes for interface %s", ifaceName)
+
+	// Use the route command on macOS to remove routes associated with the interface
+	cmd := exec.Command("route", "-n", "flush", "-ifp", ifaceName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Error flushing routes: %v, output: %s", err, output)
+
+		// Try an alternative approach
+		// First, list all routes for this interface
+		listCmd := exec.Command("netstat", "-nr", "-f", "inet")
+		listOutput, listErr := listCmd.CombinedOutput()
+		if listErr != nil {
+			log.Printf("Error listing routes: %v", listErr)
+			return err // Return the original error
+		}
+
+		// Parse netstat output to find routes for this interface
+		lines := strings.Split(string(listOutput), "\n")
+		for _, line := range lines {
+			if strings.Contains(line, ifaceName) {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					destination := fields[0]
+					if destination != "default" && destination != "Destination" {
+						// Delete this specific route
+						delCmd := exec.Command("route", "-n", "delete", destination)
+						_, delErr := delCmd.CombinedOutput()
+						if delErr != nil {
+							log.Printf("Error deleting route to %s: %v", destination, delErr)
+							// Continue with other routes
+						} else {
+							log.Printf("Deleted route to %s", destination)
+						}
+					}
+				}
+			}
+		}
+
+		return nil // We've tried our best with individual route deletion
+	}
+
+	log.Printf("Successfully flushed routes for interface %s", ifaceName)
 	return nil
 }

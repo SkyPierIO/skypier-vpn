@@ -9,13 +9,15 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vishvananda/netlink"
 )
 
 type VPNStatus struct {
-	Status  string `json:"status"`
-	IP      string `json:"ip,omitempty"`
-	PeerID  string `json:"peer_id,omitempty"`
-	Country string `json:"country,omitempty"`
+	Status    string `json:"status"`
+	IP        string `json:"ip,omitempty"`
+	Interface string `json:"interface,omitempty"`
+	PeerID    string `json:"peer_id,omitempty"`
+	Country   string `json:"country,omitempty"`
 }
 
 // IsTUNInterfaceUp checks if a TUN interface is up on the machine for a given name.
@@ -25,8 +27,9 @@ func IsTUNInterfaceUp(interfaceName string) (bool, error) {
 		return isTUNInterfaceUpLinux(interfaceName)
 	case "darwin":
 		return isTUNInterfaceUpMacOS(interfaceName)
-	case "windows":
-		return isTUNInterfaceUpWindows(interfaceName)
+	// Note: Windows support is not implemented yet
+	// case "windows":
+	// 	return isTUNInterfaceUpWindows(interfaceName)
 	default:
 		return false, fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
@@ -72,13 +75,24 @@ func GetVPNStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, status)
 }
 
-func checkVPNStatus() VPNStatus {
-	interfaceName := "utun8"
-	isUp, _ := IsTUNInterfaceUp(interfaceName)
-	if isUp {
-		// Gather details about the remote node
-		ip := "10.1.1.2" // TODO: Example IP address
+func getCurrentTunInterface() (string, error) {
+	for i := 0; i < 256; i++ {
+		ifaceName := fmt.Sprintf("utun%d", i)
+		if _, err := netlink.LinkByName(ifaceName); err == nil {
+			return ifaceName, nil
+		}
+	}
+	return "", fmt.Errorf("no available TUN interface found")
+}
 
+func checkVPNStatus() VPNStatus {
+	// Iterate through possible utun interfaces to find the first available one
+	interfaceName, err := getCurrentTunInterface()
+	if err != nil {
+		return VPNStatus{Status: "disconnected"}
+	}
+
+	if interfaceName != "" {
 		// Find the peer ID associated with the active stream
 		var peerID string
 		streamsMu.Lock()
@@ -89,9 +103,9 @@ func checkVPNStatus() VPNStatus {
 		streamsMu.Unlock()
 
 		return VPNStatus{
-			Status: "connected",
-			IP:     ip,
-			PeerID: peerID,
+			Status:    "connected",
+			Interface: interfaceName,
+			PeerID:    peerID,
 		}
 	} else {
 		return VPNStatus{Status: "disconnected"}

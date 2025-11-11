@@ -32,22 +32,50 @@ var (
 	closeOnce sync.Once
 )
 
-// CloseAllStreams closes all active streams in the streams mapping.
+// CloseAllStreams closes all active streams in the connection manager.
 func CloseAllStreams() {
-	streamsMu.Lock()
-	defer streamsMu.Unlock()
-	for peerID, stream := range streams {
-		if err := stream.Close(); err != nil {
-			log.Printf("Error closing stream for peer %s: %v", peerID, err)
+	// Get all connections first
+	connections := connectionManager.GetAllConnections()
+
+	// First, close all streams to prevent new reads/writes
+	for _, conn := range connections {
+		// Close the stream using our safe method
+		if err := conn.CloseStream(); err != nil {
+			log.Printf("Error closing stream for peer %s: %v", conn.PeerID, err)
 		} else {
-			log.Printf("Successfully closed stream for peer %s", peerID)
+			log.Printf("Successfully closed stream for peer %s", conn.PeerID)
 		}
 	}
-	streams = make(map[peerstore.ID]network.Stream) // Clear the map
+
+	// Then stop all goroutines
+	connectionManager.StopAllConnections()
+
+	// Finally, clean up interfaces
+	for _, conn := range connections {
+		// Remove the TUN interface if it exists
+		if conn.Interface != nil && conn.InterfaceName != "" {
+			if err := RemoveInterface(conn.InterfaceName); err != nil {
+				log.Printf("Error removing interface %s: %v", conn.InterfaceName, err)
+			}
+		}
+	}
+
+	// For backward compatibility, also clear the old streams map
+	streamsMu.Lock()
+	defer streamsMu.Unlock()
+	streams = make(map[peerstore.ID]network.Stream)
 }
 
 func HandleExit() {
+	// Close all active connections
 	CloseAllStreams()
+
+	// Restore original routing if needed
+	if err := RestoreRouting(); err != nil {
+		log.Printf("Warning: Error restoring routing: %v", err)
+	}
+
+	// Close global stop channel for backward compatibility
 	closeOnce.Do(func() {
 		close(stopChan)
 	})
@@ -77,17 +105,31 @@ func QuitSkypier(c *gin.Context) {
 // @Router       /connected_peers_count [get]
 func GetConnectedPeersCount(node host.Host, mydht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		peers := mydht.RoutingTable().ListPeers()
-		connectedPeers := 0
+		// Get actual libp2p connections from the node
+		// This reflects the connections limited by the connection manager
+		connectedPeers := node.Network().Peers()
+		actualConnections := len(connectedPeers)
 
-		for _, pID := range peers {
-			if node.Network().Connectedness(pID) == network.Connected {
-				connectedPeers++
-			}
-		}
+		// For reference, also get routing table peers
+		routingTablePeers := len(mydht.RoutingTable().ListPeers())
+
+		// Get active VPN connections for reference
+		activeVPNConnections := connectionManager.GetActiveConnectionsCount()
+
+		log.Printf("Connected peers: %d (libp2p), %d (routing table), %d (active VPN)",
+			actualConnections, routingTablePeers, activeVPNConnections)
 
 		c.JSON(http.StatusOK, gin.H{
-			"connected_peers_count": connectedPeers,
+			"connected_peers_count":  actualConnections,    // Use actual connections count
+			"libp2p_connections":     actualConnections,    // Same as connected_peers_count
+			"routing_table_peers":    routingTablePeers,    // DHT routing table size
+			"active_vpn_connections": activeVPNConnections, // VPN tunnels only
+			"max_connections":        10,                   // Our configured high water mark
+			"conn_mgr_config": map[string]interface{}{
+				"low_water_mark":  3,
+				"high_water_mark": 10,
+				"grace_period":    "30s",
+			},
 		})
 	}
 	return gin.HandlerFunc(fn)
@@ -193,48 +235,105 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			c.IndentedJSON(200, err)
 			return
 		}
-		// we can open a new stream
+
+		// Check if we already have a connection to this peer
+		if conn, exists := connectionManager.GetConnection(pi.ID); exists && conn.IsRunning {
+			c.IndentedJSON(200, gin.H{
+				"result":    "Already connected to peer " + pi.ID.String(),
+				"interface": conn.InterfaceName,
+			})
+			return
+		}
+
+		// Create a new stream with the Skypier protocol
+		log.Printf("Creating new stream to peer %s with protocol /skypier/1.0", pi.ID)
 		s, err := node.NewStream(c, pi.ID, "/skypier/1.0")
 		if err != nil {
-			log.Println(err)
+			log.Println("Error creating stream:", err)
+			c.IndentedJSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		log.Printf("Stream created successfully to peer %s", pi.ID)
+
+		// Create a new connection context to track this connection
+		conn := NewConnectionContext(pi.ID, s)
+
+		// First create a TUN interface with temporary values
+		conn.Interface, conn.InterfaceName, conn.LocalIP, conn.RemoteIP = SetInterfaceUpForConnection()
+
+		// Add the connection to our manager
+		connectionManager.AddConnection(conn)
+
+		// Negotiate IP addresses with the server - as the client side
+		const maxRetries = 3 // Maximum number of negotiation attempts
+		log.Printf("Starting IP negotiation as client with up to %d retries", maxRetries)
+		localIP, remoteIP, err := RetryNegotiateIPs(conn, "client", maxRetries)
+		if err != nil {
+			log.Printf("IP negotiation failed after retries: %v", err)
+			conn.CloseStream()
+			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("IP negotiation failed after %d attempts: %v", maxRetries, err)})
+			return
 		}
 
-		// Store the stream in the map
-		streamsMu.Lock()
-		streams[pi.ID] = s
-		streamsMu.Unlock()
+		log.Printf("IP negotiation successful: local=%s, remote=%s", localIP, remoteIP)
 
-		// TODO - Fix the connection manager exception for the current stream
-		// Protect the stream from being closed by the connection manager
-		// node.ConnManager().Protect(peerIdObj, peerId)
-
-		iface := SetInterfaceUp()
-		type Result struct {
-			Res string `json:"result"`
+		// Validate and update the connection with negotiated IPs
+		validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
+		if err != nil {
+			log.Printf("IP validation failed: %v", err)
+			conn.CloseStream()
+			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("IP validation failed: %v", err)})
+			return
 		}
-		res := fmt.Sprintf("Connected to the destination & `%v` VPN interface created.", iface.Name())
+
+		// Use the validated IPs
+		conn.LocalIP = validatedLocalIP
+		conn.RemoteIP = validatedRemoteIP
+
+		// Update the TUN interface with the negotiated IP
+		if err := UpdateInterfaceIP(conn.InterfaceName, localIP, remoteIP); err != nil {
+			log.Printf("Failed to update interface IP: %v", err)
+			conn.CloseStream()
+			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("Failed to update interface IP: %v", err)})
+			return
+		}
+
+		log.Printf("Updated interface %s with negotiated IPs: local=%s, remote=%s", conn.InterfaceName, localIP, remoteIP)
+
+		// Send response to the client
+		res := fmt.Sprintf("Connected to the destination & `%v` VPN interface created with IPs %s (local) and %s (remote).",
+			conn.InterfaceName, localIP, remoteIP)
 		log.Println(res)
-		c.IndentedJSON(200, Result{Res: res})
+		c.IndentedJSON(200, gin.H{"result": res, "local_ip": localIP, "remote_ip": remoteIP})
 
+		// Create buffer for data transfer
 		buf_mtu := make([]byte, 1500)
 
 		// Start the loops Rx/Tx in 2 separated goroutines.
 		/////////////////////////////////
-		// Start the goroutine with error handling
+		// Outgoing data: TUN -> Stream
 		go func() {
+			defer conn.CloseStream()
 			for {
 				select {
-				case <-stopChan:
+				case <-conn.StopChan:
+					log.Printf("Stopping outgoing data handler for peer %s", conn.PeerID)
 					return
 				default:
-					// Wrap the stream writer with the length-prefixed writer
-					lengthPrefixedStream := utils.NewLengthPrefixedWriter(s)
-					n, err := utils.Copy(lengthPrefixedStream, iface, buf_mtu)
-					log.Printf("➡️ %d bytes copied from iface to stream", n)
+					// Create a safe stream wrapper that handles closed streams gracefully
+					safeStream := NewSafeStreamWrapper(conn)
+					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
+					log.Printf("➡️ %d bytes copied from %s to stream", n, conn.InterfaceName)
 					if err != nil {
+						if err == ErrStreamClosed {
+							log.Printf("Stream closed, stopping outgoing data handler for peer %s", conn.PeerID)
+							return
+						}
 						log.Printf("🚨🚨🚨 Error copying data: %v", err)
 						if shouldCloseStream(err) {
-							handleCloseStreamHandler()
+							// Use the stream watcher to handle the connection error properly
+							streamWatcher := NewStreamWatcher(connectionManager)
+							streamWatcher.OnConnectionError(conn.PeerID, err)
 							return
 						}
 					}
@@ -242,39 +341,53 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			}
 		}()
 
+		// Incoming data: Stream -> TUN
 		go func() {
+			defer conn.CloseStream()
 			for {
 				select {
-				case <-stopChan:
+				case <-conn.StopChan:
+					log.Printf("Stopping incoming data handler for peer %s", conn.PeerID)
 					return
 				default:
-					// Wrap the stream reader with the length-prefixed reader
-					lengthPrefixedStream := utils.NewLengthPrefixedReader(s)
-					n, err := utils.Copy(iface, lengthPrefixedStream, buf_mtu)
+					// Use the same safe stream wrapper for reading
+					safeStream := NewSafeStreamWrapper(conn)
+					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
 					if err != nil {
+						if err == ErrStreamClosed {
+							log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
+							return
+						}
 						if err.Error() == "short buffer" {
 							continue // 0 bytes copied, continue
 						}
 						if n != 0 {
-							log.Printf("⬅️ %d bytes copied from stream to iface", n)
+							log.Printf("⬅️ %d bytes copied from stream to %s", n, conn.InterfaceName)
 							log.Printf("🚨🚨🚨 Error copying data: %v", err)
 						}
 						if shouldCloseStream(err) {
-							handleCloseStreamHandler()
+							connectionManager.StopConnection(conn.PeerID)
+							return
+						}
+					} else {
+						if n == 0 {
+							log.Printf("🚨🚨🚨 No data copied for peer %s, closing stream", conn.PeerID)
+							connectionManager.StopConnection(conn.PeerID)
+							return
 						}
 					}
 				}
 			}
-		}()
-
-		// static route for the VPN endpoint
+		}() // Add routing for this specific connection
 		if err := AddEndpointRoute(node, dht, c.Param("peerId")); err != nil {
-			log.Fatalf("Error adding static route for the VPN endpoint: %v", err)
+			log.Printf("Error adding static route for the VPN endpoint: %v", err)
+			// Don't fatal here, just log the error
 		}
 
-		// new "default" route for redirecting all traffic to the VPN interface
-		if err := AddDefaultRoute(InterfaceName, "10.1.1.2"); err != nil {
-			log.Fatalf("Error adding routes (traffic redirection): %v", err)
+		// Add default route for this connection using the negotiated IPs
+		if err := AddDefaultRoute(conn.InterfaceName, conn.RemoteIP); err != nil {
+			log.Printf("Error adding routes (traffic redirection): %v", err)
+			// Don't fatal here, just log the error
 		}
 	}
 	return gin.HandlerFunc(fn)
@@ -291,32 +404,45 @@ func Disconnect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			return
 		}
 
-		// Retrieve the stream from the map
-		streamsMu.Lock()
-		stream, ok := streams[peerID]
-		if ok {
-			// Close the stream
-			stream.Close()
-			delete(streams, peerID)
-		}
-		streamsMu.Unlock()
-
-		if !ok {
-			log.Printf("[+] No active stream found for peer %s", peerID)
-			c.IndentedJSON(404, gin.H{"error": "No active stream found"})
+		// Get the connection from the manager
+		conn, exists := connectionManager.GetConnection(peerID)
+		if !exists || !conn.IsRunning {
+			log.Printf("[+] No active connection found for peer %s", peerID)
+			c.IndentedJSON(404, gin.H{"error": "No active connection found"})
 			return
 		}
 
+		// First close the stream safely
+		err = conn.CloseStream()
+		if err != nil {
+			log.Printf("Error closing stream for peer %s: %v", peerID, err)
+		} else {
+			log.Printf("Successfully closed stream for peer %s", peerID)
+		}
+
+		// Then stop the connection's goroutines
+		connectionManager.StopConnection(peerID)
+
+		// Get the interface name before removing the connection
+		ifaceName := conn.InterfaceName
+		log.Println("Removing TUN interface:", ifaceName)
+
+		// Remove the connection from manager
+		connectionManager.RemoveConnection(peerID)
+
 		// Remove the TUN interface
-		if err := RemoveInterface("utun8"); err != nil {
+		if err := RemoveInterface(ifaceName); err != nil {
 			log.Println("[+] Disconnection error: ", err)
 			c.IndentedJSON(500, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Log the status
-		log.Println("[+] Successfully disconnected from the peer and removed the TUN interface.")
-		c.IndentedJSON(200, gin.H{"result": "Successfully disconnected from the peer and removed the TUN interface."})
+		// Restore original routing if needed
+		if err := RestoreRouting(); err != nil {
+			log.Printf("Warning: Error restoring routing: %v", err)
+		}
+
+		c.IndentedJSON(200, gin.H{"status": "disconnected", "interface": ifaceName})
 	}
 	return gin.HandlerFunc(fn)
 }
