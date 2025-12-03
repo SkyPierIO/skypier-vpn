@@ -19,7 +19,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.24
+        go-version: 1.25
 
       # Set up Node.js environment
     - name: Set up Node.js
@@ -113,7 +113,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22
+          go-version: 1.25
       - name: Build
         run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o skypier-vpn-${{ matrix.os }}-${{ matrix.arch }} -ldflags "-s -w" -trimpath -buildvcs=false cmd/skypier-vpn-node/main.go
       - name: Upload Release
