@@ -321,39 +321,39 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 					// Use our safe stream wrapper
 					safeStream := NewSafeStreamWrapper(conn)
 					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
-				if err != nil {
-					if err == ErrStreamClosed {
-						log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
-						return
-					}
-					if err.Error() == "short buffer" {
-						continue // 0 bytes copied, continue
-					}
-					if n != 0 {
-						log.Printf("➡️ %d bytes copied from stream to %s", n, conn.InterfaceName)
-						log.Printf("🚨🚨🚨 Error copying data: %v", err)
-					}
-					if shouldCloseStream(err) {
-						connectionManager.StopConnection(conn.PeerID)
-						return
-					}
-				} else {
-					if n == 0 {
-						zeroReadCount++
-						if zeroReadCount >= maxZeroReads {
-							log.Printf("🚨🚨🚨 Too many zero-byte reads (%d) for peer %s, closing stream", zeroReadCount, conn.PeerID)
+					if err != nil {
+						if err == ErrStreamClosed {
+							log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
+							return
+						}
+						if err.Error() == "short buffer" {
+							continue // 0 bytes copied, continue
+						}
+						if n != 0 {
+							log.Printf("➡️ %d bytes copied from stream to %s", n, conn.InterfaceName)
+							log.Printf("🚨🚨🚨 Error copying data: %v", err)
+						}
+						if shouldCloseStream(err) {
 							connectionManager.StopConnection(conn.PeerID)
 							return
 						}
-						// Brief sleep to prevent busy loop during idle periods
-						time.Sleep(10 * time.Millisecond)
-						continue
+					} else {
+						if n == 0 {
+							zeroReadCount++
+							if zeroReadCount >= maxZeroReads {
+								log.Printf("🚨🚨🚨 Too many zero-byte reads (%d) for peer %s, closing stream", zeroReadCount, conn.PeerID)
+								connectionManager.StopConnection(conn.PeerID)
+								return
+							}
+							// Brief sleep to prevent busy loop during idle periods
+							time.Sleep(10 * time.Millisecond)
+							continue
+						}
+						// Reset counter on successful read
+						zeroReadCount = 0
 					}
-					// Reset counter on successful read
-					zeroReadCount = 0
 				}
 			}
-		}
-	}()
+		}()
 	} // end of stream handler function
 } // end of makeStreamHandler

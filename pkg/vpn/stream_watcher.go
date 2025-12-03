@@ -33,8 +33,8 @@ func (sw *StreamWatcher) RegisterHost(ctx context.Context, notifBundle *network.
 // onConnected is called when a peer connects
 func (sw *StreamWatcher) onConnected(net network.Network, conn network.Conn) {
 	peerID := conn.RemotePeer()
-	log.Printf("🔌 Peer connected: %s via %s (direction: %s)", 
-		peerID.String(), 
+	log.Printf("🔌 Peer connected: %s via %s (direction: %s)",
+		peerID.String(),
 		conn.RemoteMultiaddr().String(),
 		conn.Stat().Direction.String())
 }
@@ -43,7 +43,7 @@ func (sw *StreamWatcher) onConnected(net network.Network, conn network.Conn) {
 func (sw *StreamWatcher) onDisconnected(net network.Network, conn network.Conn) {
 	peerID := conn.RemotePeer()
 	stat := conn.Stat()
-	log.Printf("⚡ Peer disconnected: %s after %v (opened: %v, direction: %s)", 
+	log.Printf("⚡ Peer disconnected: %s after %v (opened: %v, direction: %s)",
 		peerID.String(),
 		time.Since(stat.Opened),
 		stat.Opened,
