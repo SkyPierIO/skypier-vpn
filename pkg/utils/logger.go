@@ -49,34 +49,34 @@ const (
 type Component string
 
 const (
-	ComponentP2P        Component = "P2P"
-	ComponentStream     Component = "STREAM"
-	ComponentConnMgr    Component = "CONNMGR"
-	ComponentTUN        Component = "TUN"
-	ComponentRoute      Component = "ROUTE"
-	ComponentDHT        Component = "DHT"
-	ComponentAPI        Component = "API"
-	ComponentVPN        Component = "VPN"
-	ComponentDiscovery  Component = "DISCOVER"
-	ComponentNegotiate  Component = "NEGOTIATE"
-	ComponentCrypto     Component = "CRYPTO"
-	ComponentWatcher    Component = "WATCHER"
+	ComponentP2P       Component = "P2P"
+	ComponentStream    Component = "STREAM"
+	ComponentConnMgr   Component = "CONNMGR"
+	ComponentTUN       Component = "TUN"
+	ComponentRoute     Component = "ROUTE"
+	ComponentDHT       Component = "DHT"
+	ComponentAPI       Component = "API"
+	ComponentVPN       Component = "VPN"
+	ComponentDiscovery Component = "DISCOVER"
+	ComponentNegotiate Component = "NEGOTIATE"
+	ComponentCrypto    Component = "CRYPTO"
+	ComponentWatcher   Component = "WATCHER"
 )
 
 // componentColors maps components to their display colors
 var componentColors = map[Component]string{
-	ComponentP2P:        ColorBoldCyan,
-	ComponentStream:     ColorBoldGreen,
-	ComponentConnMgr:    ColorBoldMagenta,
-	ComponentTUN:        ColorBoldBlue,
-	ComponentRoute:      ColorYellow,
-	ComponentDHT:        ColorCyan,
-	ComponentAPI:        ColorBoldWhite,
-	ComponentVPN:        ColorBoldGreen,
-	ComponentDiscovery:  ColorMagenta,
-	ComponentNegotiate:  ColorBlue,
-	ComponentCrypto:     ColorGray,
-	ComponentWatcher:    ColorBoldYellow,
+	ComponentP2P:       ColorBoldCyan,
+	ComponentStream:    ColorBoldGreen,
+	ComponentConnMgr:   ColorBoldMagenta,
+	ComponentTUN:       ColorBoldBlue,
+	ComponentRoute:     ColorYellow,
+	ComponentDHT:       ColorCyan,
+	ComponentAPI:       ColorBoldWhite,
+	ComponentVPN:       ColorBoldGreen,
+	ComponentDiscovery: ColorMagenta,
+	ComponentNegotiate: ColorBlue,
+	ComponentCrypto:    ColorGray,
+	ComponentWatcher:   ColorBoldYellow,
 }
 
 // levelColors maps log levels to their display colors
