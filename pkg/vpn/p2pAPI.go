@@ -255,6 +255,11 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		}
 		log.Printf("Stream created successfully to peer %s", pi.ID)
 
+		// CRITICAL: Protect this VPN connection from being pruned by the connection manager
+		// This prevents the connection manager from closing VPN streams when trimming connections
+		log.Printf("🛡️ Protecting VPN connection for peer %s from connection manager pruning", pi.ID)
+		node.ConnManager().Protect(pi.ID, "skypier-vpn")
+
 		// Create a new connection context to track this connection
 		conn := NewConnectionContext(pi.ID, s)
 
@@ -270,6 +275,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		localIP, remoteIP, err := RetryNegotiateIPs(conn, "client", maxRetries)
 		if err != nil {
 			log.Printf("IP negotiation failed after retries: %v", err)
+			// Unprotect on failure before cleanup
+			node.ConnManager().Unprotect(pi.ID, "skypier-vpn")
 			conn.CloseStream()
 			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("IP negotiation failed after %d attempts: %v", maxRetries, err)})
 			return
@@ -281,6 +288,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
 		if err != nil {
 			log.Printf("IP validation failed: %v", err)
+			node.ConnManager().Unprotect(pi.ID, "skypier-vpn")
 			conn.CloseStream()
 			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("IP validation failed: %v", err)})
 			return
@@ -293,6 +301,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Update the TUN interface with the negotiated IP
 		if err := UpdateInterfaceIP(conn.InterfaceName, localIP, remoteIP); err != nil {
 			log.Printf("Failed to update interface IP: %v", err)
+			node.ConnManager().Unprotect(pi.ID, "skypier-vpn")
 			conn.CloseStream()
 			c.IndentedJSON(500, gin.H{"error": fmt.Sprintf("Failed to update interface IP: %v", err)})
 			return
@@ -313,7 +322,12 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		/////////////////////////////////
 		// Outgoing data: TUN -> Stream
 		go func() {
-			defer conn.CloseStream()
+			defer func() {
+				// Unprotect the connection when the handler exits
+				log.Printf("🛡️ Removing protection for peer %s (outgoing handler exit)", conn.PeerID)
+				node.ConnManager().Unprotect(conn.PeerID, "skypier-vpn")
+				conn.CloseStream()
+			}()
 			for {
 				select {
 				case <-conn.StopChan:
@@ -344,6 +358,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Incoming data: Stream -> TUN
 		go func() {
 			defer conn.CloseStream()
+			zeroReadCount := 0
+			const maxZeroReads = 10 // Allow some zero reads before considering it a disconnect
 			for {
 				select {
 				case <-conn.StopChan:
@@ -371,10 +387,18 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 						}
 					} else {
 						if n == 0 {
-							log.Printf("🚨🚨🚨 No data copied for peer %s, closing stream", conn.PeerID)
-							connectionManager.StopConnection(conn.PeerID)
-							return
+							zeroReadCount++
+							if zeroReadCount >= maxZeroReads {
+								log.Printf("🚨🚨🚨 Too many zero-byte reads (%d) for peer %s, closing stream", zeroReadCount, conn.PeerID)
+								connectionManager.StopConnection(conn.PeerID)
+								return
+							}
+							// Brief sleep to prevent busy loop during idle periods
+							time.Sleep(10 * time.Millisecond)
+							continue
 						}
+						// Reset counter on successful read
+						zeroReadCount = 0
 					}
 				}
 			}
@@ -411,6 +435,10 @@ func Disconnect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 			c.IndentedJSON(404, gin.H{"error": "No active connection found"})
 			return
 		}
+
+		// Unprotect the VPN connection to allow the connection manager to clean it up
+		log.Printf("🛡️ Removing protection for peer %s (disconnect)", peerID)
+		node.ConnManager().Unprotect(peerID, "skypier-vpn")
 
 		// First close the stream safely
 		err = conn.CloseStream()

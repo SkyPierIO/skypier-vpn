@@ -147,7 +147,8 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 
 	log.Println("Enabling Stream Handler...")
 	// Set the Skypier protocol handler on the Host's Mux
-	node.SetStreamHandler("/skypier/1.0", streamHandler)
+	// Use a closure to capture the node so we can protect VPN connections from pruning
+	node.SetStreamHandler("/skypier/1.0", makeStreamHandler(node))
 	log.Println("Stream handler enabled for protocol /skypier/1.0")
 
 	// Bootstrap the DHT to build its routing table
@@ -178,6 +179,8 @@ func shouldCloseStream(err error) bool {
 		errMsg == "read tun: file descriptor in bad state" ||
 		strings.Contains(errMsg, "received a stateless reset with token") ||
 		strings.Contains(errMsg, "Application error 0x0") ||
+		strings.Contains(errMsg, "Application error 0x1005") ||
+		strings.Contains(errMsg, "connection closed (remote)") ||
 		strings.Contains(errMsg, "use of closed network connection")
 }
 
@@ -205,99 +208,119 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 	return node, dht
 }
 
-// streamHandler handles incoming streams for the "/skypier/1.0" protocol
-func streamHandler(s network.Stream) {
-	peerID := s.Conn().RemotePeer()
-	log.Printf("Starting the stream handler for peer: %s", peerID)
-	log.Printf("Node status: %v (true=server, false=client)", utils.IS_NODE_HOST)
+// makeStreamHandler creates a stream handler closure that captures the host node
+// This allows the handler to protect VPN connections from being pruned by the connection manager
+func makeStreamHandler(node host.Host) network.StreamHandler {
+	return func(s network.Stream) {
+		peerID := s.Conn().RemotePeer()
+		log.Printf("Starting the stream handler for peer: %s", peerID)
+		log.Printf("Node status: %v (true=server, false=client)", utils.IS_NODE_HOST)
 
-	// Check if we already have a connection to this peer
-	if existingConn, exists := connectionManager.GetConnection(peerID); exists && existingConn.IsRunning {
-		log.Printf("Connection already exists for peer %s, closing new stream", peerID)
-		s.Close()
-		return
-	}
+		// CRITICAL: Protect this VPN connection from being pruned by the connection manager
+		// This prevents the connection manager from closing VPN streams when trimming connections
+		log.Printf("🛡️ Protecting VPN connection for peer %s from connection manager pruning", peerID)
+		node.ConnManager().Protect(peerID, "skypier-vpn")
 
-	// Create a new connection context for this stream
-	conn := NewConnectionContext(peerID, s)
-	log.Printf("Created new connection context for peer %s", peerID)
+		// Check if we already have a connection to this peer
+		if existingConn, exists := connectionManager.GetConnection(peerID); exists && existingConn.IsRunning {
+			log.Printf("Connection already exists for peer %s, closing new stream", peerID)
+			// Don't forget to unprotect if we're rejecting this connection
+			node.ConnManager().Unprotect(peerID, "skypier-vpn")
+			s.Close()
+			return
+		}
 
-	// Create a dedicated TUN interface for this connection
-	conn.Interface, conn.InterfaceName, conn.LocalIP, conn.RemoteIP = SetInterfaceUpForConnection()
-	log.Printf("Created TUN interface %s with IPs local=%s, remote=%s",
-		conn.InterfaceName, conn.LocalIP, conn.RemoteIP)
+		// Create a new connection context for this stream
+		conn := NewConnectionContext(peerID, s)
+		log.Printf("Created new connection context for peer %s", peerID)
 
-	// Add the connection to our manager
-	connectionManager.AddConnection(conn)
-	log.Printf("Added connection to connection manager")
+		// Create a dedicated TUN interface for this connection
+		conn.Interface, conn.InterfaceName, conn.LocalIP, conn.RemoteIP = SetInterfaceUpForConnection()
+		log.Printf("Created TUN interface %s with IPs local=%s, remote=%s",
+			conn.InterfaceName, conn.LocalIP, conn.RemoteIP)
 
-	// Handle IP negotiation with retries - as the server side
-	log.Printf("Starting IP negotiation as server for peer %s", peerID)
-	const maxRetries = 3 // Maximum number of negotiation attempts
-	localIP, remoteIP, err := RetryNegotiateIPs(conn, "server", maxRetries)
-	if err != nil {
-		log.Printf("IP negotiation failed after retries: %v", err)
-		conn.Cleanup()
-		return
-	}
-	log.Printf("IP negotiation successful: local=%s, remote=%s", localIP, remoteIP)
+		// Add the connection to our manager
+		connectionManager.AddConnection(conn)
+		log.Printf("Added connection to connection manager")
 
-	// Validate the negotiated IPs
-	validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
-	if err != nil {
-		log.Printf("IP validation failed for peer %s: %v", peerID, err)
-		conn.Cleanup()
-		return
-	}
+		// Handle IP negotiation with retries - as the server side
+		log.Printf("Starting IP negotiation as server for peer %s", peerID)
+		const maxRetries = 3 // Maximum number of negotiation attempts
+		localIP, remoteIP, err := RetryNegotiateIPs(conn, "server", maxRetries)
+		if err != nil {
+			log.Printf("IP negotiation failed after retries: %v", err)
+			// Unprotect on failure before cleanup
+			node.ConnManager().Unprotect(peerID, "skypier-vpn")
+			conn.Cleanup()
+			return
+		}
+		log.Printf("IP negotiation successful: local=%s, remote=%s", localIP, remoteIP)
 
-	log.Printf("Validated IPs for peer %s: local=%s, remote=%s",
-		peerID, validatedLocalIP, validatedRemoteIP)
+		// Validate the negotiated IPs
+		validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
+		if err != nil {
+			log.Printf("IP validation failed for peer %s: %v", peerID, err)
+			// Unprotect on failure before cleanup
+			node.ConnManager().Unprotect(peerID, "skypier-vpn")
+			conn.Cleanup()
+			return
+		}
 
-	buf_mtu := make([]byte, 1500)
+		log.Printf("Validated IPs for peer %s: local=%s, remote=%s",
+			peerID, validatedLocalIP, validatedRemoteIP)
 
-	// Start the goroutine with error handling for TUN -> Stream (outgoing data)
-	go func() {
-		defer conn.CloseStream()
-		for {
-			select {
-			case <-conn.StopChan:
-				log.Printf("Stopping outgoing data handler for peer %s", conn.PeerID.String())
-				return
-			default:
-				// Use our safe stream wrapper
-				safeStream := NewSafeStreamWrapper(conn)
-				n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
-				log.Printf("⬅️ %d bytes copied from %s to stream", n, conn.InterfaceName)
-				if err != nil {
-					if err == ErrStreamClosed {
-						log.Printf("Stream closed, stopping outgoing data handler for peer %s", conn.PeerID)
-						return
-					}
-					log.Printf("🚨🚨🚨 Error copying data: %v", err)
-					if shouldCloseStream(err) {
-						log.Printf("Closing stream for peer %s due to error", conn.PeerID)
-						connectionManager.StopConnection(conn.PeerID)
-						return
-					} else {
-						log.Println("Error is not so bad, continue... (debug)")
+		buf_mtu := make([]byte, 1500)
+
+		// Start the goroutine with error handling for TUN -> Stream (outgoing data)
+		go func() {
+			defer func() {
+				// Unprotect the connection when the stream handler exits
+				log.Printf("🛡️ Removing protection for peer %s (outgoing handler exit)", peerID)
+				node.ConnManager().Unprotect(peerID, "skypier-vpn")
+				conn.CloseStream()
+			}()
+			for {
+				select {
+				case <-conn.StopChan:
+					log.Printf("Stopping outgoing data handler for peer %s", conn.PeerID.String())
+					return
+				default:
+					// Use our safe stream wrapper
+					safeStream := NewSafeStreamWrapper(conn)
+					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
+					log.Printf("⬅️ %d bytes copied from %s to stream", n, conn.InterfaceName)
+					if err != nil {
+						if err == ErrStreamClosed {
+							log.Printf("Stream closed, stopping outgoing data handler for peer %s", conn.PeerID)
+							return
+						}
+						log.Printf("🚨🚨🚨 Error copying data: %v", err)
+						if shouldCloseStream(err) {
+							log.Printf("Closing stream for peer %s due to error", conn.PeerID)
+							connectionManager.StopConnection(conn.PeerID)
+							return
+						} else {
+							log.Println("Error is not so bad, continue... (debug)")
+						}
 					}
 				}
 			}
-		}
-	}()
+		}()
 
-	// Start the goroutine with error handling for Stream -> TUN (incoming data)
-	go func() {
-		defer conn.CloseStream()
-		for {
-			select {
-			case <-conn.StopChan:
-				log.Printf("Stopping incoming data handler for peer %s", conn.PeerID.String())
-				return
-			default:
-				// Use our safe stream wrapper
-				safeStream := NewSafeStreamWrapper(conn)
-				n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
+		// Start the goroutine with error handling for Stream -> TUN (incoming data)
+		go func() {
+			defer conn.CloseStream()
+			zeroReadCount := 0
+			const maxZeroReads = 10 // Allow some zero reads before considering it a disconnect
+			for {
+				select {
+				case <-conn.StopChan:
+					log.Printf("Stopping incoming data handler for peer %s", conn.PeerID.String())
+					return
+				default:
+					// Use our safe stream wrapper
+					safeStream := NewSafeStreamWrapper(conn)
+					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
 				if err != nil {
 					if err == ErrStreamClosed {
 						log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
@@ -316,12 +339,21 @@ func streamHandler(s network.Stream) {
 					}
 				} else {
 					if n == 0 {
-						log.Printf("🚨🚨🚨 No data copied for peer %s, closing stream", conn.PeerID)
-						connectionManager.StopConnection(conn.PeerID)
-						return
+						zeroReadCount++
+						if zeroReadCount >= maxZeroReads {
+							log.Printf("🚨🚨🚨 Too many zero-byte reads (%d) for peer %s, closing stream", zeroReadCount, conn.PeerID)
+							connectionManager.StopConnection(conn.PeerID)
+							return
+						}
+						// Brief sleep to prevent busy loop during idle periods
+						time.Sleep(10 * time.Millisecond)
+						continue
 					}
+					// Reset counter on successful read
+					zeroReadCount = 0
 				}
 			}
 		}
 	}()
-}
+	} // end of stream handler function
+} // end of makeStreamHandler

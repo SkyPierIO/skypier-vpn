@@ -3,6 +3,7 @@ package vpn
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -24,18 +25,33 @@ func NewStreamWatcher(cm *ConnectionManager) *StreamWatcher {
 func (sw *StreamWatcher) RegisterHost(ctx context.Context, notifBundle *network.NotifyBundle) {
 	// Define handlers for stream events
 	notifBundle.DisconnectedF = sw.onDisconnected
+	notifBundle.ConnectedF = sw.onConnected
 
 	// libp2p doesn't have a direct ClosedStream notification, so we'll rely on Disconnected events
+}
+
+// onConnected is called when a peer connects
+func (sw *StreamWatcher) onConnected(net network.Network, conn network.Conn) {
+	peerID := conn.RemotePeer()
+	log.Printf("🔌 Peer connected: %s via %s (direction: %s)", 
+		peerID.String(), 
+		conn.RemoteMultiaddr().String(),
+		conn.Stat().Direction.String())
 }
 
 // onDisconnected is called when a peer is disconnected
 func (sw *StreamWatcher) onDisconnected(net network.Network, conn network.Conn) {
 	peerID := conn.RemotePeer()
-	// log.Printf("Peer disconnected: %s, cleaning up resources", peerID.String())
+	stat := conn.Stat()
+	log.Printf("⚡ Peer disconnected: %s after %v (opened: %v, direction: %s)", 
+		peerID.String(),
+		time.Since(stat.Opened),
+		stat.Opened,
+		stat.Direction.String())
 
 	// Stop and remove the connection
 	if sw.connectionManager.StopConnection(peerID) {
-		log.Printf("Successfully cleaned up resources for disconnected peer: %s", peerID.String())
+		log.Printf("✅ Successfully cleaned up resources for disconnected peer: %s", peerID.String())
 	}
 }
 
