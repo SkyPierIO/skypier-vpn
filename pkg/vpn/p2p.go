@@ -2,7 +2,6 @@ package vpn
 
 import (
 	"context"
-	"log"
 	"strings"
 	"time"
 
@@ -31,6 +30,11 @@ var (
 	stopChan = make(chan struct{})
 	// Connection manager to handle multiple concurrent clients
 	connectionManager = NewConnectionManager()
+
+	// Component loggers
+	p2pLog    = utils.P2PLog
+	streamLog = utils.StreamLog
+	dhtLog    = utils.DHTLog
 )
 
 // func handleCloseStreamHandler() {
@@ -41,8 +45,8 @@ var (
 
 func displayNodeInfo(node host.Host) {
 	// print node ID
-	log.Println("───────────────────────────────────────────────────")
-	log.Println("libp2p peer ID: ", node.ID())
+	p2pLog.Separator()
+	p2pLog.Info("libp2p peer ID: %s", node.ID())
 
 	// print the node's PeerInfo in multiaddr format
 	peerInfo := peerstore.AddrInfo{
@@ -52,11 +56,11 @@ func displayNodeInfo(node host.Host) {
 	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
 	utils.Check(err)
 
-	log.Println("libp2p peer address:")
+	p2pLog.Info("libp2p peer addresses:")
 	for i := 0; i < len(addrs); i++ {
-		log.Println("\t", addrs[i])
+		p2pLog.Info("  %s", addrs[i])
 	}
-	log.Println("───────────────────────────────────────────────────")
+	p2pLog.Separator()
 }
 
 // StartNode initializes and starts a libp2p node
@@ -70,7 +74,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 
 	// Configure connection manager with limits
 	// Set a low limit for maximum number of peers to connect to (much less than the default 25)
-	log.Printf("Configuring connection manager with strict limits: LowWater=5, HighWater=15")
+	p2pLog.Info("Configuring connection manager: LowWater=5, HighWater=15")
 	connMgr, err := connmgr.NewConnManager(
 		5,  // LowWater - below this we'll accept new connections
 		15, // HighWater - above this we'll prune connections
@@ -78,10 +82,10 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		connmgr.WithEmergencyTrim(true),         // Allow emergency trimming if we run out of file descriptors
 	)
 	if err != nil {
-		log.Printf("Failed to create connection manager: %v", err)
+		p2pLog.Error("Failed to create connection manager: %v", err)
 		return nil, nil, err
 	}
-	log.Printf("Successfully configured libp2p connection manager: max peers=10, grace period=30s")
+	p2pLog.Success("Connection manager configured")
 
 	var idht *dht.IpfsDHT
 
@@ -106,7 +110,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 				dht.Concurrency(2),                     // Limit concurrent queries
 				dht.QueryFilter(dht.PublicQueryFilter), // Only use public addresses
 			)
-			log.Println("initializing DHT with limited concurrency...")
+			dhtLog.Info("Initializing DHT with limited concurrency...")
 			return idht, err
 		}),
 		// Add the connection manager to limit max peers to 10 (HighWater mark)
@@ -120,7 +124,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	utils.Check(err)
 	sEnc := b64.StdEncoding.EncodeToString([]byte(keyBytes))
 	if utils.IsDebugEnabled() {
-		log.Println(sEnc)
+		p2pLog.Debug("Private key: %s", sEnc)
 	}
 
 	// Connect to a limited number of bootstrap peers
@@ -132,24 +136,24 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		bootstrapPeers = bootstrapPeers[:maxBootstrapPeers]
 	}
 
-	log.Printf("Connecting to %d bootstrap peers (limited from %d default)",
+	dhtLog.Info("Connecting to %d bootstrap peers (limited from %d)",
 		len(bootstrapPeers), len(dht.DefaultBootstrapPeers))
 
 	for _, addr := range bootstrapPeers {
 		pi, _ := peerstore.AddrInfoFromP2pAddr(addr)
 		err := node.Connect(ctx, *pi)
 		if err != nil {
-			log.Printf("Failed to connect to bootstrap peer %s: %v", pi.ID, err)
+			dhtLog.Warn("Failed to connect to bootstrap peer %s: %v", pi.ID, err)
 			continue
 		}
-		log.Println("Connected to bootstrap peer: ", pi.ID)
+		dhtLog.Success("Connected to bootstrap peer: %s", pi.ID)
 	}
 
-	log.Println("Enabling Stream Handler...")
+	streamLog.Info("Enabling stream handler...")
 	// Set the Skypier protocol handler on the Host's Mux
 	// Use a closure to capture the node so we can protect VPN connections from pruning
 	node.SetStreamHandler("/skypier/1.0", makeStreamHandler(node))
-	log.Println("Stream handler enabled for protocol /skypier/1.0")
+	streamLog.Success("Stream handler enabled for protocol /skypier/1.0")
 
 	// Bootstrap the DHT to build its routing table
 	// if err := idht.Bootstrap(ctx); err != nil {
@@ -185,7 +189,7 @@ func shouldCloseStream(err error) bool {
 }
 
 func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.IpfsDHT) {
-	log.Println("Generating identity...")
+	p2pLog.Info("Generating identity...")
 	privKey, err := LoadPrivateKey()
 	utils.Check(err)
 
@@ -201,7 +205,7 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 	notifyBundle := &network.NotifyBundle{}
 	streamWatcher.RegisterHost(ctx, notifyBundle)
 	node.Network().Notify(notifyBundle)
-	log.Println("Registered stream watcher to handle peer disconnections")
+	watcherLog.Info("Registered stream watcher for peer disconnections")
 
 	displayNodeInfo(node)
 
@@ -213,17 +217,17 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 func makeStreamHandler(node host.Host) network.StreamHandler {
 	return func(s network.Stream) {
 		peerID := s.Conn().RemotePeer()
-		log.Printf("Starting the stream handler for peer: %s", peerID)
-		log.Printf("Node status: %v (true=server, false=client)", utils.IS_NODE_HOST)
+		streamLog.Info("Starting stream handler for peer: %s", peerID)
+		streamLog.Debug("Node status: %v (true=server, false=client)", utils.IS_NODE_HOST)
 
 		// CRITICAL: Protect this VPN connection from being pruned by the connection manager
 		// This prevents the connection manager from closing VPN streams when trimming connections
-		log.Printf("🛡️ Protecting VPN connection for peer %s from connection manager pruning", peerID)
+		streamLog.Info("🛡️ Protecting VPN connection for peer %s", peerID)
 		node.ConnManager().Protect(peerID, "skypier-vpn")
 
 		// Check if we already have a connection to this peer
 		if existingConn, exists := connectionManager.GetConnection(peerID); exists && existingConn.IsRunning {
-			log.Printf("Connection already exists for peer %s, closing new stream", peerID)
+			streamLog.Warn("Connection already exists for peer %s, closing new stream", peerID)
 			// Don't forget to unprotect if we're rejecting this connection
 			node.ConnManager().Unprotect(peerID, "skypier-vpn")
 			s.Close()
@@ -232,41 +236,41 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 
 		// Create a new connection context for this stream
 		conn := NewConnectionContext(peerID, s)
-		log.Printf("Created new connection context for peer %s", peerID)
+		streamLog.Debug("Created connection context for peer %s", peerID)
 
 		// Create a dedicated TUN interface for this connection
 		conn.Interface, conn.InterfaceName, conn.LocalIP, conn.RemoteIP = SetInterfaceUpForConnection()
-		log.Printf("Created TUN interface %s with IPs local=%s, remote=%s",
+		utils.TUNLog.Info("Created TUN %s (local=%s, remote=%s)",
 			conn.InterfaceName, conn.LocalIP, conn.RemoteIP)
 
 		// Add the connection to our manager
 		connectionManager.AddConnection(conn)
-		log.Printf("Added connection to connection manager")
+		connLog.Debug("Added connection to manager")
 
 		// Handle IP negotiation with retries - as the server side
-		log.Printf("Starting IP negotiation as server for peer %s", peerID)
+		utils.NegotiateLog.Info("Starting IP negotiation as server for peer %s", peerID)
 		const maxRetries = 3 // Maximum number of negotiation attempts
 		localIP, remoteIP, err := RetryNegotiateIPs(conn, "server", maxRetries)
 		if err != nil {
-			log.Printf("IP negotiation failed after retries: %v", err)
+			utils.NegotiateLog.Error("IP negotiation failed: %v", err)
 			// Unprotect on failure before cleanup
 			node.ConnManager().Unprotect(peerID, "skypier-vpn")
 			conn.Cleanup()
 			return
 		}
-		log.Printf("IP negotiation successful: local=%s, remote=%s", localIP, remoteIP)
+		utils.NegotiateLog.Success("Negotiated IPs: local=%s, remote=%s", localIP, remoteIP)
 
 		// Validate the negotiated IPs
 		validatedLocalIP, validatedRemoteIP, err := ValidateAndUseNegotiatedIPs(conn, localIP, remoteIP)
 		if err != nil {
-			log.Printf("IP validation failed for peer %s: %v", peerID, err)
+			utils.NegotiateLog.Error("IP validation failed for peer %s: %v", peerID, err)
 			// Unprotect on failure before cleanup
 			node.ConnManager().Unprotect(peerID, "skypier-vpn")
 			conn.Cleanup()
 			return
 		}
 
-		log.Printf("Validated IPs for peer %s: local=%s, remote=%s",
+		utils.NegotiateLog.Debug("Validated IPs for peer %s: local=%s, remote=%s",
 			peerID, validatedLocalIP, validatedRemoteIP)
 
 		buf_mtu := make([]byte, 1500)
@@ -275,32 +279,32 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 		go func() {
 			defer func() {
 				// Unprotect the connection when the stream handler exits
-				log.Printf("🛡️ Removing protection for peer %s (outgoing handler exit)", peerID)
+				streamLog.Debug("🛡️ Removing protection for peer %s (handler exit)", peerID)
 				node.ConnManager().Unprotect(peerID, "skypier-vpn")
 				conn.CloseStream()
 			}()
 			for {
 				select {
 				case <-conn.StopChan:
-					log.Printf("Stopping outgoing data handler for peer %s", conn.PeerID.String())
+					streamLog.Debug("Stopping outgoing handler for peer %s", conn.PeerID.String())
 					return
 				default:
 					// Use our safe stream wrapper
 					safeStream := NewSafeStreamWrapper(conn)
 					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
-					log.Printf("⬅️ %d bytes copied from %s to stream", n, conn.InterfaceName)
+					if n > 0 {
+						streamLog.Data("⬅️", n, "from %s to stream", conn.InterfaceName)
+					}
 					if err != nil {
 						if err == ErrStreamClosed {
-							log.Printf("Stream closed, stopping outgoing data handler for peer %s", conn.PeerID)
+							streamLog.Debug("Stream closed, stopping outgoing handler for peer %s", conn.PeerID)
 							return
 						}
-						log.Printf("🚨🚨🚨 Error copying data: %v", err)
+						streamLog.Error("Error copying data: %v", err)
 						if shouldCloseStream(err) {
-							log.Printf("Closing stream for peer %s due to error", conn.PeerID)
+							streamLog.Warn("Closing stream for peer %s due to error", conn.PeerID)
 							connectionManager.StopConnection(conn.PeerID)
 							return
-						} else {
-							log.Println("Error is not so bad, continue... (debug)")
 						}
 					}
 				}
@@ -315,7 +319,7 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 			for {
 				select {
 				case <-conn.StopChan:
-					log.Printf("Stopping incoming data handler for peer %s", conn.PeerID.String())
+					streamLog.Debug("Stopping incoming handler for peer %s", conn.PeerID.String())
 					return
 				default:
 					// Use our safe stream wrapper
@@ -323,15 +327,15 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
 					if err != nil {
 						if err == ErrStreamClosed {
-							log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
+							streamLog.Debug("Stream closed, stopping incoming handler for peer %s", conn.PeerID)
 							return
 						}
 						if err.Error() == "short buffer" {
 							continue // 0 bytes copied, continue
 						}
 						if n != 0 {
-							log.Printf("➡️ %d bytes copied from stream to %s", n, conn.InterfaceName)
-							log.Printf("🚨🚨🚨 Error copying data: %v", err)
+							streamLog.Data("➡️", n, "from stream to %s", conn.InterfaceName)
+							streamLog.Error("Error copying data: %v", err)
 						}
 						if shouldCloseStream(err) {
 							connectionManager.StopConnection(conn.PeerID)
@@ -341,7 +345,7 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 						if n == 0 {
 							zeroReadCount++
 							if zeroReadCount >= maxZeroReads {
-								log.Printf("🚨🚨🚨 Too many zero-byte reads (%d) for peer %s, closing stream", zeroReadCount, conn.PeerID)
+								streamLog.Warn("Too many zero-byte reads (%d) for peer %s, closing", zeroReadCount, conn.PeerID)
 								connectionManager.StopConnection(conn.PeerID)
 								return
 							}

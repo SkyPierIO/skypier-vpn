@@ -2,15 +2,18 @@ package vpn
 
 import (
 	"errors"
-	"log"
 	"sync"
 
+	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/songgao/water"
 )
 
-var ErrStreamClosed = errors.New("stream is closed")
+var (
+	ErrStreamClosed = errors.New("stream is closed")
+	connLog         = utils.ConnMgrLog
+)
 
 // ConnectionContext manages the state of a single VPN connection
 type ConnectionContext struct {
@@ -83,7 +86,7 @@ func (conn *ConnectionContext) CloseStream() error {
 
 	err := conn.Stream.Close()
 	conn.streamClosed = true
-	log.Printf("Stream closed for peer %s", conn.PeerID)
+	connLog.Info("Stream closed for peer %s", conn.PeerID)
 
 	// Call UnregisterStream for backward compatibility
 	UnregisterStream(conn.Stream)
@@ -95,7 +98,7 @@ func (conn *ConnectionContext) CloseStream() error {
 func (conn *ConnectionContext) Cleanup() {
 	// Use StopOnce to ensure we only clean up once
 	conn.StopOnce.Do(func() {
-		log.Printf("Cleaning up connection to peer %s", conn.PeerID)
+		connLog.Info("Cleaning up connection to peer %s", conn.PeerID)
 
 		// First, mark the connection as not running
 		conn.IsRunning = false
@@ -108,37 +111,37 @@ func (conn *ConnectionContext) Cleanup() {
 
 		// Release the subnet back to the pool
 		if conn.LocalIP != "" {
-			log.Printf("Releasing subnet for connection %s", conn.PeerID)
+			connLog.Debug("Releasing subnet for connection %s", conn.PeerID)
 			ReleaseSubnet(conn.LocalIP)
 		}
 
 		// Cleanup routes if needed
 		if conn.Interface != nil && conn.InterfaceName != "" {
-			log.Printf("Cleaning up routes for interface %s", conn.InterfaceName)
+			connLog.Debug("Cleaning up routes for interface %s", conn.InterfaceName)
 			// Use the cross-platform cleanup function
 			if err := CleanupInterfaceRoutes(conn.InterfaceName); err != nil {
-				log.Printf("Error during route cleanup for interface %s: %v", conn.InterfaceName, err)
+				connLog.Warn("Error during route cleanup for interface %s: %v", conn.InterfaceName, err)
 				// Non-fatal error, continue with cleanup
 			}
 		}
 
 		// Clean up the TUN interface
 		if conn.InterfaceName != "" {
-			log.Printf("Cleaning up TUN interface %s", conn.InterfaceName)
+			connLog.Debug("Cleaning up TUN interface %s", conn.InterfaceName)
 
 			// Platform-specific interface cleanup
 			if err := CleanupTUNInterface(conn.InterfaceName); err != nil {
-				log.Printf("Error cleaning up TUN interface %s: %v", conn.InterfaceName, err)
+				connLog.Error("Error cleaning up TUN interface %s: %v", conn.InterfaceName, err)
 			} else {
-				log.Printf("Successfully cleaned up TUN interface %s", conn.InterfaceName)
+				connLog.Success("Cleaned up TUN interface %s", conn.InterfaceName)
 			}
 
 			// If interface still exists, close it directly
 			if conn.Interface != nil {
 				if err := conn.Interface.Close(); err != nil {
-					log.Printf("Error closing TUN interface: %v", err)
+					connLog.Warn("Error closing TUN interface: %v", err)
 				} else {
-					log.Printf("TUN interface closed successfully")
+					connLog.Debug("TUN interface closed successfully")
 				}
 				conn.Interface = nil
 			}
@@ -212,7 +215,7 @@ func (cm *ConnectionManager) StopConnection(peerID peer.ID) bool {
 	delete(cm.connections, peerID)
 	cm.mutex.Unlock()
 
-	log.Printf("Connection for peer %s has been stopped and removed from manager", peerID)
+	connLog.Info("Connection for peer %s stopped and removed", peerID)
 	return true
 }
 

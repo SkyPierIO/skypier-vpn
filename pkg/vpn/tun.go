@@ -2,7 +2,6 @@ package vpn
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -17,6 +16,7 @@ var (
 	// Removed unused localIP variable
 	InterfaceName string
 	ifaceLocker   sync.Mutex // Global lock for TUN interface creation
+	tunLog        = utils.TUNLog
 )
 
 // SubnetRegistry keeps track of allocated subnets to avoid conflicts
@@ -38,14 +38,14 @@ func AllocateSubnet() string {
 			subnet := fmt.Sprintf("10.%d.%d", i, j)
 			if !SubnetRegistry.allocatedSubnets[subnet] {
 				SubnetRegistry.allocatedSubnets[subnet] = true
-				log.Printf("Allocated subnet: %s", subnet)
+				tunLog.Debug("Allocated subnet: %s", subnet)
 				return subnet
 			}
 		}
 	}
 
 	// If we get here, we've run out of subnets!
-	log.Printf("WARNING: No more subnets available, reusing 10.1.1")
+	tunLog.Warn("No more subnets available, reusing 10.1.1")
 	return "10.1.1" // Fallback to default
 }
 
@@ -59,7 +59,7 @@ func ReleaseSubnet(subnet string) {
 	if len(parts) >= 3 {
 		prefix := fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
 		delete(SubnetRegistry.allocatedSubnets, prefix)
-		log.Printf("Released subnet: %s", prefix)
+		tunLog.Debug("Released subnet: %s", prefix)
 	}
 }
 
@@ -85,7 +85,7 @@ func getAvailableTunInterface() (string, string, string) {
 			cmd := exec.Command("netstat", "-ni")
 			output, err := cmd.CombinedOutput()
 			if err != nil {
-				log.Printf("Warning: Failed to run netstat: %v", err)
+				tunLog.Warn("Failed to run netstat: %v", err)
 				break
 			}
 
@@ -99,7 +99,7 @@ func getAvailableTunInterface() (string, string, string) {
 		// If we couldn't find an available interface, let the OS choose one
 		if ifaceName == "" {
 			ifaceName = "" // Empty string means let macOS choose
-			log.Printf("Letting macOS choose a TUN interface name")
+			tunLog.Debug("Letting macOS choose TUN interface name")
 		}
 
 	case "linux", "android":
@@ -110,7 +110,7 @@ func getAvailableTunInterface() (string, string, string) {
 			if err != nil {
 				// Interface doesn't exist, we can use this name
 				ifaceName = candidate
-				log.Printf("Found available Linux TUN interface: %s", ifaceName)
+				tunLog.Debug("Found available TUN interface: %s", ifaceName)
 				break
 			}
 		}
@@ -118,14 +118,15 @@ func getAvailableTunInterface() (string, string, string) {
 		// If all interfaces are taken (unlikely), use a default
 		if ifaceName == "" {
 			ifaceName = "skypier0"
-			log.Printf("Using default interface name: %s", ifaceName)
+			tunLog.Debug("Using default interface: %s", ifaceName)
 		}
 
 	default:
-		log.Fatalf("Unsupported operating system: %s", runtime.GOOS)
+		tunLog.Error("Unsupported OS: %s", runtime.GOOS)
+		panic(fmt.Sprintf("Unsupported operating system: %s", runtime.GOOS))
 	}
 
-	log.Printf("Selected interface %s with subnet %s (local=%s, remote=%s)",
+	tunLog.Info("Selected %s with subnet %s (local=%s, remote=%s)",
 		ifaceName, subnet, localIP, remoteIP)
 
 	return ifaceName, localIP, remoteIP
@@ -146,16 +147,18 @@ func SetInterfaceUpForConnection() (*water.Interface, string, string, string) {
 	// Create a new TUN/TAP interface using config.
 	iface, err := water.New(config)
 	if err != nil {
-		log.Fatal(err)
+		tunLog.Error("Failed to create TUN interface: %v", err)
+		panic(err)
 	}
 
-	log.Println("Set TUN interface up:", ifaceName)
+	tunLog.Success("TUN interface up: %s", ifaceName)
 
 	if runtime.GOOS == "darwin" {
 		// macOS specific configuration
 		err := configureTunMacOS(ifaceName, localIPAddr, remoteIPAddr)
 		if err != nil {
-			log.Fatal(err)
+			tunLog.Error("Failed to configure macOS TUN: %v", err)
+			panic(err)
 		}
 	} else {
 		// Linux specific configuration
@@ -170,7 +173,8 @@ func SetInterfaceUpForConnection() (*water.Interface, string, string, string) {
 
 		err := netlink.LinkSetMTU(pierIface, 1500) // MTU set to 1500 for standard MTU
 		if err != nil {
-			log.Fatalf("Failed to set MTU: %v", err)
+			tunLog.Error("Failed to set MTU: %v", err)
+			panic(err)
 		}
 
 		netlink.LinkSetUp(pierIface)
@@ -210,7 +214,7 @@ func configureTunMacOS(ifaceName, localIP, remoteIP string) error {
 
 // UpdateInterfaceIP updates the IP address of an existing TUN interface
 func UpdateInterfaceIP(ifaceName string, localIP string, remoteIP string) error {
-	log.Printf("Updating interface %s with IPs: local=%s, remote=%s", ifaceName, localIP, remoteIP)
+	tunLog.Info("Updating %s with IPs: local=%s, remote=%s", ifaceName, localIP, remoteIP)
 
 	if runtime.GOOS == "darwin" {
 		// Delete the existing route configuration first
@@ -236,7 +240,7 @@ func UpdateInterfaceIP(ifaceName string, localIP string, remoteIP string) error 
 
 		for _, addr := range addrs {
 			if err := netlink.AddrDel(pierIface, &addr); err != nil {
-				log.Printf("Warning: Failed to delete address %s: %v", addr.String(), err)
+				tunLog.Warn("Failed to delete address %s: %v", addr.String(), err)
 			}
 		}
 
