@@ -189,6 +189,32 @@ paths:
       summary: Test the connectivity of a remote host (using Libp2p Connect)
       tags:
       - VPN
+  /stats:
+    get:
+      description: Get real-time bandwidth and connection statistics for all active
+        VPN connections
+      produces:
+      - application/json
+      responses: {}
+      summary: Get all connection statistics
+      tags:
+      - VPN
+  /stats/{peerId}:
+    get:
+      description: Get real-time bandwidth and connection statistics for a specific
+        VPN connection
+      parameters:
+      - description: Peer ID
+        in: path
+        name: peerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Get connection statistics for a peer
+      tags:
+      - VPN
   /updateConfig:
     post:
       description: Update the content of the configuration file

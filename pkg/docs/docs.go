@@ -228,6 +228,41 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/stats": {
+            "get": {
+                "description": "Get real-time bandwidth and connection statistics for all active VPN connections",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Get all connection statistics",
+                "responses": {}
+            }
+        },
+        "/stats/{peerId}": {
+            "get": {
+                "description": "Get real-time bandwidth and connection statistics for a specific VPN connection",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "VPN"
+                ],
+                "summary": "Get connection statistics for a peer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer ID",
+                        "name": "peerId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/updateConfig": {
             "post": {
                 "description": "Update the content of the configuration file",

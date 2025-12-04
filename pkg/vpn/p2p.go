@@ -275,6 +275,9 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 
 		buf_mtu := make([]byte, 1500)
 
+		// Initialize stats tracking for this connection
+		connStats := GetGlobalStats().GetOrCreate(conn.PeerID)
+
 		// Start the goroutine with error handling for TUN -> Stream (outgoing data)
 		go func() {
 			defer func() {
@@ -282,6 +285,8 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 				streamLog.Debug("🛡️ Removing protection for peer %s (handler exit)", peerID)
 				node.ConnManager().Unprotect(peerID, "skypier-vpn")
 				conn.CloseStream()
+				// Remove stats when connection ends
+				GetGlobalStats().Remove(conn.PeerID)
 			}()
 			for {
 				select {
@@ -293,6 +298,7 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 					safeStream := NewSafeStreamWrapper(conn)
 					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
 					if n > 0 {
+						connStats.RecordBytesSent(int64(n))
 						streamLog.Data("⬅️", n, "from %s to stream", conn.InterfaceName)
 					}
 					if err != nil {
@@ -325,6 +331,9 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 					// Use our safe stream wrapper
 					safeStream := NewSafeStreamWrapper(conn)
 					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
+					if n > 0 {
+						connStats.RecordBytesReceived(int64(n))
+					}
 					if err != nil {
 						if err == ErrStreamClosed {
 							streamLog.Debug("Stream closed, stopping incoming handler for peer %s", conn.PeerID)

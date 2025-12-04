@@ -318,6 +318,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Create buffer for data transfer
 		buf_mtu := make([]byte, 1500)
 
+		// Initialize stats tracking for this connection
+		connStats := GetGlobalStats().GetOrCreate(conn.PeerID)
+
 		// Start the loops Rx/Tx in 2 separated goroutines.
 		/////////////////////////////////
 		// Outgoing data: TUN -> Stream
@@ -327,6 +330,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				log.Printf("🛡️ Removing protection for peer %s (outgoing handler exit)", conn.PeerID)
 				node.ConnManager().Unprotect(conn.PeerID, "skypier-vpn")
 				conn.CloseStream()
+				// Remove stats when connection ends
+				GetGlobalStats().Remove(conn.PeerID)
 			}()
 			for {
 				select {
@@ -337,6 +342,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 					// Create a safe stream wrapper that handles closed streams gracefully
 					safeStream := NewSafeStreamWrapper(conn)
 					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
+					if n > 0 {
+						connStats.RecordBytesSent(int64(n))
+					}
 					log.Printf("➡️ %d bytes copied from %s to stream", n, conn.InterfaceName)
 					if err != nil {
 						if err == ErrStreamClosed {
@@ -369,6 +377,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 					// Use the same safe stream wrapper for reading
 					safeStream := NewSafeStreamWrapper(conn)
 					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
+					if n > 0 {
+						connStats.RecordBytesReceived(int64(n))
+					}
 					if err != nil {
 						if err == ErrStreamClosed {
 							log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
