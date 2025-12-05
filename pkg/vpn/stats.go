@@ -48,16 +48,16 @@ type ConnectionStats struct {
 
 // ConnectionStatsJSON is the JSON-serializable version of ConnectionStats
 type ConnectionStatsJSON struct {
-	BytesSent        int64   `json:"bytes_sent"`
-	BytesReceived    int64   `json:"bytes_received"`
-	PacketsSent      int64   `json:"packets_sent"`
-	PacketsReceived  int64   `json:"packets_received"`
-	ConnectedAt      string  `json:"connected_at"`
-	UptimeSeconds    float64 `json:"uptime_seconds"`
-	UploadRateBps    int64   `json:"upload_rate_bps"`
-	DownloadRateBps  int64   `json:"download_rate_bps"`
-	LatencyMs        int64   `json:"latency_ms"`
-	LastActivityAt   string  `json:"last_activity_at"`
+	BytesSent       int64   `json:"bytes_sent"`
+	BytesReceived   int64   `json:"bytes_received"`
+	PacketsSent     int64   `json:"packets_sent"`
+	PacketsReceived int64   `json:"packets_received"`
+	ConnectedAt     string  `json:"connected_at"`
+	UptimeSeconds   float64 `json:"uptime_seconds"`
+	UploadRateBps   int64   `json:"upload_rate_bps"`
+	DownloadRateBps int64   `json:"download_rate_bps"`
+	LatencyMs       int64   `json:"latency_ms"`
+	LastActivityAt  string  `json:"last_activity_at"`
 }
 
 // NewConnectionStats creates a new stats tracker
