@@ -80,6 +80,7 @@ func (s *ConnectionStats) calculateRates() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	logCounter := 0
 	for {
 		select {
 		case <-s.stopChan:
@@ -99,6 +100,15 @@ func (s *ConnectionStats) calculateRates() {
 
 				s.currentUploadRate.Store(int64(uploadRate))
 				s.currentDownloadRate.Store(int64(downloadRate))
+
+				// Log rates every 5 seconds if there's activity
+				logCounter++
+				if logCounter >= 5 && (uploadRate > 0 || downloadRate > 0) {
+					statsLog.Debug("📊 Rates: ⬆️ %s ⬇️ %s | Total: ⬆️ %s ⬇️ %s",
+						FormatBitrate(int64(uploadRate)), FormatBitrate(int64(downloadRate)),
+						FormatBytes(currentSent), FormatBytes(currentReceived))
+					logCounter = 0
+				}
 
 				s.lastBytesSent = currentSent
 				s.lastBytesReceived = currentReceived
@@ -122,12 +132,20 @@ func (s *ConnectionStats) RecordBytesSent(n int64) {
 	s.BytesSent.Add(n)
 	s.PacketsSent.Add(1)
 	s.updateLastActivity()
+	total := s.BytesSent.Load()
+	if total%100000 < n { // Log roughly every 100KB
+		statsLog.Debug("📤 Sent %d bytes (total: %s)", n, FormatBytes(total))
+	}
 }
 
 // RecordBytesReceived adds to the received bytes counter
 func (s *ConnectionStats) RecordBytesReceived(n int64) {
 	s.BytesReceived.Add(n)
 	s.PacketsReceived.Add(1)
+	total := s.BytesReceived.Load()
+	if total%100000 < n { // Log roughly every 100KB
+		statsLog.Debug("📥 Received %d bytes (total: %s)", n, FormatBytes(total))
+	}
 	s.updateLastActivity()
 }
 
@@ -212,6 +230,17 @@ func (m *ConnectionStatsManager) Get(peerID peer.ID) (*ConnectionStats, bool) {
 	return stats, exists
 }
 
+// ListPeers returns a list of all tracked peer IDs (for debugging)
+func (m *ConnectionStatsManager) ListPeers() []string {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	peers := make([]string, 0, len(m.stats))
+	for peerID := range m.stats {
+		peers = append(peers, peerID.String()[:20]+"...")
+	}
+	return peers
+}
+
 // Remove removes stats for a peer
 func (m *ConnectionStatsManager) Remove(peerID peer.ID) {
 	m.mutex.Lock()
@@ -282,6 +311,7 @@ func GetConnectionStats() gin.HandlerFunc {
 		peerIdStr := c.Param("peerId")
 		peerID, err := peer.Decode(peerIdStr)
 		if err != nil {
+			statsLog.Error("Invalid peer ID: %s - %v", peerIdStr, err)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid peer ID",
 			})
@@ -290,13 +320,16 @@ func GetConnectionStats() gin.HandlerFunc {
 
 		stats, exists := statsManager.Get(peerID)
 		if !exists {
+			statsLog.Warn("No stats found for peer %s - available peers: %v", peerIdStr, statsManager.ListPeers())
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "No stats found for this peer",
 			})
 			return
 		}
 
-		c.JSON(http.StatusOK, stats.ToJSON())
+		json := stats.ToJSON()
+		statsLog.Debug("Stats for %s: ⬆️ %s ⬇️ %s", peerIdStr[:20], FormatBitrate(json.UploadRateBps), FormatBitrate(json.DownloadRateBps))
+		c.JSON(http.StatusOK, json)
 	}
 }
 

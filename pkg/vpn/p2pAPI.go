@@ -341,10 +341,10 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				default:
 					// Create a safe stream wrapper that handles closed streams gracefully
 					safeStream := NewSafeStreamWrapper(conn)
-					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
-					if n > 0 {
-						connStats.RecordBytesSent(int64(n))
-					}
+					// Use CopyWithCallback for real-time stats tracking
+					n, err := utils.CopyWithCallback(safeStream, conn.Interface, buf_mtu, func(bytes int64) {
+						connStats.RecordBytesSent(bytes)
+					})
 					log.Printf("➡️ %d bytes copied from %s to stream", n, conn.InterfaceName)
 					if err != nil {
 						if err == ErrStreamClosed {
@@ -376,10 +376,10 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 				default:
 					// Use the same safe stream wrapper for reading
 					safeStream := NewSafeStreamWrapper(conn)
-					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
-					if n > 0 {
-						connStats.RecordBytesReceived(int64(n))
-					}
+					// Use CopyWithCallback for real-time stats tracking
+					n, err := utils.CopyWithCallback(conn.Interface, safeStream, buf_mtu, func(bytes int64) {
+						connStats.RecordBytesReceived(bytes)
+					})
 					if err != nil {
 						if err == ErrStreamClosed {
 							log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)

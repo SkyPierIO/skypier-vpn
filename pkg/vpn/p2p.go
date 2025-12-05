@@ -296,9 +296,11 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 				default:
 					// Use our safe stream wrapper
 					safeStream := NewSafeStreamWrapper(conn)
-					n, err := utils.Copy(safeStream, conn.Interface, buf_mtu)
+					// Use CopyWithCallback for real-time stats tracking
+					n, err := utils.CopyWithCallback(safeStream, conn.Interface, buf_mtu, func(bytes int64) {
+						connStats.RecordBytesSent(bytes)
+					})
 					if n > 0 {
-						connStats.RecordBytesSent(int64(n))
 						streamLog.Data("⬅️", n, "from %s to stream", conn.InterfaceName)
 					}
 					if err != nil {
@@ -330,10 +332,10 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 				default:
 					// Use our safe stream wrapper
 					safeStream := NewSafeStreamWrapper(conn)
-					n, err := utils.Copy(conn.Interface, safeStream, buf_mtu)
-					if n > 0 {
-						connStats.RecordBytesReceived(int64(n))
-					}
+					// Use CopyWithCallback for real-time stats tracking
+					n, err := utils.CopyWithCallback(conn.Interface, safeStream, buf_mtu, func(bytes int64) {
+						connStats.RecordBytesReceived(bytes)
+					})
 					if err != nil {
 						if err == ErrStreamClosed {
 							streamLog.Debug("Stream closed, stopping incoming handler for peer %s", conn.PeerID)
