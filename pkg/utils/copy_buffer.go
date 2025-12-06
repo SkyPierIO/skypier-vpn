@@ -33,8 +33,17 @@ func (rlw *rateLimitedWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
+// BytesCallback is a function type for reporting bytes transferred
+type BytesCallback func(n int64)
+
 // Copy copies from src to dst using a buffer. If buf is nil, one is allocated.
 func Copy(dst io.Writer, src io.Reader, buf []byte) (written int64, err error) {
+	return CopyWithCallback(dst, src, buf, nil)
+}
+
+// CopyWithCallback copies from src to dst using a buffer, calling the callback after each write.
+// This allows real-time tracking of bytes transferred.
+func CopyWithCallback(dst io.Writer, src io.Reader, buf []byte, onBytes BytesCallback) (written int64, err error) {
 	// Create a rate limiter that allows n MB per second
 	limiter := rate.NewLimiter(50<<20, 50<<20)
 
@@ -66,6 +75,10 @@ func Copy(dst io.Writer, src io.Reader, buf []byte) (written int64, err error) {
 				}
 			}
 			written += int64(nw)
+			// Call the callback for real-time stats tracking
+			if onBytes != nil && nw > 0 {
+				onBytes(int64(nw))
+			}
 			if ew != nil {
 				err = ew
 				break

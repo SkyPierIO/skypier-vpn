@@ -93,14 +93,13 @@ func checkVPNStatus() VPNStatus {
 	}
 
 	if interfaceName != "" {
-		// Find the peer ID associated with the active stream
+		// Find the peer ID from the active connections using connectionManager
 		var peerID string
-		streamsMu.Lock()
-		for pid := range streams {
-			peerID = pid.String()
+		connections := connectionManager.GetAllConnections()
+		for _, conn := range connections {
+			peerID = conn.PeerID.String()
 			break
 		}
-		streamsMu.Unlock()
 
 		return VPNStatus{
 			Status:    "connected",
