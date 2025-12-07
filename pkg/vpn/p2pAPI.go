@@ -316,7 +316,9 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		c.IndentedJSON(200, gin.H{"result": res, "local_ip": localIP, "remote_ip": remoteIP})
 
 		// Create buffer for data transfer
-		buf_mtu := make([]byte, 1500)
+		// Use a larger buffer for better throughput (64KB instead of MTU-sized 1500)
+		// This reduces syscall overhead significantly for bulk transfers
+		buf_mtu := make([]byte, 65536)
 
 		// Initialize stats tracking for this connection
 		connStats := GetGlobalStats().GetOrCreate(conn.PeerID)
@@ -405,7 +407,8 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 								return
 							}
 							// Brief sleep to prevent busy loop during idle periods
-							time.Sleep(10 * time.Millisecond)
+							// Reduced from 10ms to 1ms for lower latency
+							time.Sleep(1 * time.Millisecond)
 							continue
 						}
 						// Reset counter on successful read

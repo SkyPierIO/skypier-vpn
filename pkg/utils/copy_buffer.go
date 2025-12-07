@@ -1,37 +1,34 @@
 package utils
 
 import (
-	"context"
 	"encoding/binary"
 	"errors"
 	"io"
-
-	"golang.org/x/time/rate"
 )
 
-// rateLimitedWriter wraps an io.Writer and limits the rate of writes.
-type rateLimitedWriter struct {
-	writer  io.Writer
-	limiter *rate.Limiter
-}
+// // rateLimitedWriter wraps an io.Writer and limits the rate of writes.
+// type rateLimitedWriter struct {
+// 	writer  io.Writer
+// 	limiter *rate.Limiter
+// }
 
-func (rlw *rateLimitedWriter) Write(p []byte) (int, error) {
-	n := 0
-	for len(p) > 0 {
-		// Wait for permission to write
-		if err := rlw.limiter.WaitN(context.TODO(), len(p)); err != nil {
-			return n, err
-		}
-		// Write the data
-		written, err := rlw.writer.Write(p)
-		n += written
-		if err != nil {
-			return n, err
-		}
-		p = p[written:]
-	}
-	return n, nil
-}
+// func (rlw *rateLimitedWriter) Write(p []byte) (int, error) {
+// 	n := 0
+// 	for len(p) > 0 {
+// 		// Wait for permission to write
+// 		if err := rlw.limiter.WaitN(context.TODO(), len(p)); err != nil {
+// 			return n, err
+// 		}
+// 		// Write the data
+// 		written, err := rlw.writer.Write(p)
+// 		n += written
+// 		if err != nil {
+// 			return n, err
+// 		}
+// 		p = p[written:]
+// 	}
+// 	return n, nil
+// }
 
 // BytesCallback is a function type for reporting bytes transferred
 type BytesCallback func(n int64)
@@ -43,18 +40,21 @@ func Copy(dst io.Writer, src io.Reader, buf []byte) (written int64, err error) {
 
 // CopyWithCallback copies from src to dst using a buffer, calling the callback after each write.
 // This allows real-time tracking of bytes transferred.
+// OPTIMIZED: Removed rate limiter for maximum throughput.
 func CopyWithCallback(dst io.Writer, src io.Reader, buf []byte, onBytes BytesCallback) (written int64, err error) {
-	// Create a rate limiter that allows n MB per second
-	limiter := rate.NewLimiter(50<<20, 50<<20)
+	// // Create a rate limiter that allows n MB per second
+	// limiter := rate.NewLimiter(50<<20, 50<<20)
 
-	// Wrap the destination writer with the rate-limited writer
-	rlw := &rateLimitedWriter{
-		writer:  dst,
-		limiter: limiter,
-	}
+	// // Wrap the destination writer with the rate-limited writer
+	// rlw := &rateLimitedWriter{
+	// 	writer:  dst,
+	// 	limiter: limiter,
+	// }
 
 	if buf == nil {
-		size := 1470
+		// Use a larger buffer for better throughput (64KB instead of MTU-sized 1470)
+		// This reduces syscall overhead significantly for bulk transfers
+		size := 65536 // 64KB buffer
 		if l, ok := src.(*io.LimitedReader); ok && int64(size) > l.N {
 			if l.N < 1 {
 				size = 1
@@ -64,10 +64,13 @@ func CopyWithCallback(dst io.Writer, src io.Reader, buf []byte, onBytes BytesCal
 		}
 		buf = make([]byte, size)
 	}
+
+	// Direct copy without rate limiting for maximum throughput
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
-			nw, ew := rlw.Write(buf[0:nr])
+			// nw, ew := rlw.Write(buf[0:nr])
+			nw, ew := dst.Write(buf[0:nr])
 			if nw < 0 || nr < nw {
 				nw = 0
 				if ew == nil {
