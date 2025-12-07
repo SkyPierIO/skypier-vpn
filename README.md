@@ -100,11 +100,12 @@ A configuration file is created at first launch. But you can also start with you
 
 ```json
 {
-    "nickname": "MySkypierNode-Customize-me",
-    "debug": false,
+    "nickname": "MySkypierNode",
+    "logLevel": "info",
     "privateKey": "<YOUR-PK>",
     "advertisePrivateAddresses": false,
-    "swaggerEnabled": false
+    "swaggerEnabled": true,
+    "dhtDiscovery": false
 }
 ```
 

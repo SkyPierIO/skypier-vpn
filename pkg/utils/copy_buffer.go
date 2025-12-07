@@ -113,7 +113,7 @@ func (lpw *lengthPrefixedWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 
-	// Write the actual data
+	// Write the actual dataCopy(Copy(
 	n, err := lpw.writer.Write(p)
 	if err != nil {
 		return n, err
@@ -144,8 +144,10 @@ func (lpr *lengthPrefixedReader) Read(p []byte) (int, error) {
 		return 0, io.ErrShortBuffer
 	}
 
-	// Read the actual data
-	n, err := lpr.reader.Read(p[:length])
+	// Use io.ReadFull to ensure we read ALL the expected bytes
+	// A single Read() call may return fewer bytes than requested on streams,
+	// causing incomplete packet reads and data corruption.
+	n, err := io.ReadFull(lpr.reader, p[:length])
 	if err != nil {
 		return n, err
 	}

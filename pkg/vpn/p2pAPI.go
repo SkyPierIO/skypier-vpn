@@ -220,12 +220,12 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peerstore.Decode(peerId)
-		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] Peerstor decoding error: Cannot decode Peer ID. ", err)
+		if err != nil {
+			utils.APILog.Warn("Peerstore decoding error: Cannot decode Peer ID: %v", err)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)
-		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] Connection error: dht.FindPeer returns nil while looking for peer ", peerId, err)
+		if err != nil {
+			utils.APILog.Warn("Connection error: dht.FindPeer returns nil while looking for peer %s: %v", peerId, err)
 			c.IndentedJSON(404, "Cannot find the peer in the DHT "+peerIdObj.String())
 			return
 		}

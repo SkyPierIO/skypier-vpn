@@ -113,9 +113,7 @@ func DiscoverPeersWithKademlia(ctx context.Context, h host.Host, mydht *dht.Ipfs
 
 				_, err := h.Network().DialPeer(ctx, pID)
 				if err != nil {
-					if utils.IsDebugEnabled() {
-						log.Printf("Failed to connect to peer %s: %v\n", pID.String(), err)
-					}
+					utils.DiscoverLog.Debug("Failed to connect to peer %s: %v", pID.String(), err)
 					continue
 				}
 
@@ -138,18 +136,18 @@ func GetPeerIPAddresses(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
 		peerIdObj, err := peer.Decode(peerId)
-		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] discovery error: ", err, peerId)
+		if err != nil {
+			utils.DiscoverLog.Warn("Discovery error decoding peer: %v %s", err, peerId)
 		}
 		pi, err := dht.FindPeer(c, peerIdObj)
-		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] discovery error: ", err, peerId)
+		if err != nil {
+			utils.DiscoverLog.Warn("Discovery error finding peer: %v %s", err, peerId)
 		}
 
 		// Connect to the peer ID
 		err = node.Connect(c, pi)
-		if err != nil && utils.IsDebugEnabled() {
-			log.Println("[+] discovery error: ", err, peerId)
+		if err != nil {
+			utils.DiscoverLog.Warn("Discovery error connecting to peer: %v %s", err, peerId)
 		}
 
 		// Get the peer address

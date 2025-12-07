@@ -46,6 +46,9 @@ func main() {
 
 	utils.DefineAsNodeHost(true)
 
+	// Initialize log level from configuration
+	utils.InitLogLevel()
+
 	// Setup System Context
 	ctx := context.Background()
 

@@ -33,14 +33,16 @@ func Display(err error) {
 	}
 }
 
-func IsDebugEnabled() bool {
+// InitLogLevel initializes the global log level from configuration
+// Call this early in main() to configure logging based on config file
+func InitLogLevel() {
 	config, err := LoadConfiguration("/etc/skypier/config.json")
 	if err != nil {
-		log.Fatal(err)
-		return true
-	} else {
-		return config.Debug
+		// Default to info level if config can't be loaded
+		SetGlobalLogLevel(LogLevelInfo)
+		return
 	}
+	SetLogLevelFromString(config.LogLevel)
 }
 
 // Nickname			 godoc

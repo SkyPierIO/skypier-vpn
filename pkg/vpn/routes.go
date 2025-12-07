@@ -16,18 +16,18 @@ import (
 func getAddressesFromPeerId(peerId string, node host.Host, dht *dht.IpfsDHT) (peerIPAddresses []string) {
 	c := context.Background()
 	peerIdObj, err := peer.Decode(peerId)
-	if err != nil && utils.IsDebugEnabled() {
-		log.Println("[+] discovery error while adding route: ", err)
+	if err != nil {
+		utils.RouteLog.Warn("Discovery error while adding route: %v", err)
 	}
 	pi, err := dht.FindPeer(c, peerIdObj)
-	if err != nil && utils.IsDebugEnabled() {
-		log.Println("[+] discovery error while adding route: ", err)
+	if err != nil {
+		utils.RouteLog.Warn("Discovery error: FindPeer failed: %v", err)
 	}
 
 	// Connect to the peer ID
 	err = node.Connect(c, pi)
-	if err != nil && utils.IsDebugEnabled() {
-		log.Println("[+] discovery error while adding route: ", err)
+	if err != nil {
+		utils.RouteLog.Warn("Discovery error: Connect failed: %v", err)
 	}
 
 	// Get the peer address

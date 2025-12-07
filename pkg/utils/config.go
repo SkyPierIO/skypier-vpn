@@ -19,7 +19,7 @@ type InnerConfig struct {
 // Config loaded from the configuration file
 type Config struct {
 	Nickname                  string `json:"nickname"`
-	Debug                     bool   `json:"debug"`
+	LogLevel                  string `json:"logLevel"` // "debug", "info", "warn", "error" (default: "info")
 	PrivateKey                string `json:"privateKey"`
 	AdvertisePrivateAddresses bool   `json:"advertisePrivateAddresses"`
 	SwaggerEnabled            bool   `json:"swaggerEnabled"`
@@ -34,7 +34,7 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{"MySkypierNode", false, "", false, true, false}
+		config = Config{"MySkypierNode", "info", "", false, true, false}
 		return config, err
 	} else {
 		defer configFile.Close()
@@ -114,7 +114,7 @@ func InitConfiguration(file string) error {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{"MySkypierNode", false, "", false, true, false}
+		config := Config{"MySkypierNode", "info", "", false, true, false}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err

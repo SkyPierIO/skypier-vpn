@@ -132,6 +132,47 @@ func SetGlobalLogLevel(level LogLevel) {
 	globalMinLevel = level
 }
 
+// ParseLogLevel converts a string log level to LogLevel
+// Valid values: "debug", "info", "warn", "error" (case-insensitive)
+// Returns LogLevelInfo as default for invalid values
+func ParseLogLevel(level string) LogLevel {
+	switch level {
+	case "debug", "DEBUG", "Debug":
+		return LogLevelDebug
+	case "info", "INFO", "Info", "":
+		return LogLevelInfo
+	case "warn", "WARN", "Warn", "warning", "WARNING":
+		return LogLevelWarn
+	case "error", "ERROR", "Error", "err", "ERR":
+		return LogLevelError
+	default:
+		return LogLevelInfo
+	}
+}
+
+// SetLogLevelFromString sets the global log level from a string value
+func SetLogLevelFromString(level string) {
+	SetGlobalLogLevel(ParseLogLevel(level))
+}
+
+// GetLogLevelString returns the current log level as a string
+func GetLogLevelString() string {
+	globalMutex.RLock()
+	defer globalMutex.RUnlock()
+	switch globalMinLevel {
+	case LogLevelDebug:
+		return "debug"
+	case LogLevelInfo:
+		return "info"
+	case LogLevelWarn:
+		return "warn"
+	case LogLevelError:
+		return "error"
+	default:
+		return "info"
+	}
+}
+
 // SetUseColors enables or disables colored output
 func SetUseColors(enabled bool) {
 	useColors = enabled
