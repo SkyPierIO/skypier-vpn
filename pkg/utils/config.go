@@ -24,6 +24,8 @@ type Config struct {
 	AdvertisePrivateAddresses bool   `json:"advertisePrivateAddresses"`
 	SwaggerEnabled            bool   `json:"swaggerEnabled"`
 	DHTDiscovery              bool   `json:"dhtDiscovery"`
+	EnableProfiling           bool   `json:"enableProfiling"` // Enable pprof profiling endpoint (default: false)
+	ProfilingPort             int    `json:"profilingPort"`   // Port for pprof server (default: 6060)
 }
 
 func LoadConfiguration(file string) (Config, error) {
@@ -34,12 +36,27 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{"MySkypierNode", "info", "", false, true, false}
+		config = Config{
+			Nickname:                  "MySkypierNode",
+			LogLevel:                  "info",
+			PrivateKey:                "",
+			AdvertisePrivateAddresses: false,
+			SwaggerEnabled:            true,
+			DHTDiscovery:              false,
+			EnableProfiling:           false,
+			ProfilingPort:             6060,
+		}
 		return config, err
 	} else {
 		defer configFile.Close()
 		jsonParser := json.NewDecoder(configFile)
 		jsonParser.Decode(&config)
+
+		// Set defaults for profiling if not specified
+		if config.ProfilingPort == 0 {
+			config.ProfilingPort = 6060
+		}
+
 		return config, nil
 	}
 }
@@ -114,7 +131,16 @@ func InitConfiguration(file string) error {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{"MySkypierNode", "info", "", false, true, false}
+		config := Config{
+			Nickname:                  "MySkypierNode",
+			LogLevel:                  "info",
+			PrivateKey:                "",
+			AdvertisePrivateAddresses: false,
+			SwaggerEnabled:            true,
+			DHTDiscovery:              false,
+			EnableProfiling:           false,
+			ProfilingPort:             6060,
+		}
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err

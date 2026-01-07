@@ -34,3 +34,6 @@ config.json
 
 # frontend relative ignore
 .pnpm-store
+
+# pprof profiling and iperf3 files
+profiling_results/

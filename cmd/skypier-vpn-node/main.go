@@ -55,10 +55,19 @@ func main() {
 	// CONFIGURATION
 	utils.Greetings("Skypier Node")
 	utils.InitConfiguration("/etc/skypier/config.json")
+	config, err := utils.LoadConfiguration("/etc/skypier/config.json")
+	utils.Check(err)
 	innerConfig := utils.InnerConfig{
 		Port:            8081,
 		Protocol:        "skypier",
 		ProtocolVersion: "1.0",
+	}
+
+	// Start profiling server if enabled
+	if config.EnableProfiling {
+		utils.StartProfilingServer(config.ProfilingPort)
+		// Log initial statistics
+		utils.LogProfilingStats()
 	}
 
 	// go vpn.SetInterfaceUp()
@@ -90,6 +99,6 @@ func main() {
 	api.GET("/connections", vpn.GetConnectionsTable)
 
 	// Run with HTTP
-	err := router.Run("127.0.0.1:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
+	err = router.Run("127.0.0.1:" + strconv.FormatUint(uint64(innerConfig.Port), 10))
 	utils.Check(err)
 }

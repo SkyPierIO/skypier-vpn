@@ -94,6 +94,13 @@ func main() {
 		log.Fatalf("Failed to disable IPv6: %v", err)
 	}
 
+	// Start profiling server if enabled
+	if config.EnableProfiling {
+		utils.StartProfilingServer(config.ProfilingPort)
+		// Log initial statistics
+		utils.LogProfilingStats()
+	}
+
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
 	if config.DHTDiscovery {
