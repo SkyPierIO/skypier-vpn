@@ -61,6 +61,8 @@ const (
 	ComponentNegotiate Component = "NEGOTIATE"
 	ComponentCrypto    Component = "CRYPTO"
 	ComponentWatcher   Component = "WATCHER"
+	ComponentNAT       Component = "NAT"
+	ComponentHolePunch Component = "HOLEPUNCH"
 )
 
 // componentColors maps components to their display colors
@@ -77,6 +79,8 @@ var componentColors = map[Component]string{
 	ComponentNegotiate: ColorBlue,
 	ComponentCrypto:    ColorGray,
 	ComponentWatcher:   ColorBoldYellow,
+	ComponentNAT:       ColorBoldMagenta,
+	ComponentHolePunch: ColorBoldGreen,
 }
 
 // levelColors maps log levels to their display colors
@@ -329,4 +333,6 @@ var (
 	NegotiateLog = NewLogger(ComponentNegotiate)
 	CryptoLog    = NewLogger(ComponentCrypto)
 	WatcherLog   = NewLogger(ComponentWatcher)
+	NATLog       = NewLogger(ComponentNAT)
+	HolePunchLog = NewLogger(ComponentHolePunch)
 )

@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	peerstore "github.com/libp2p/go-libp2p/core/peer"
@@ -109,6 +110,8 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
 		libp2p.NATPortMap(),
+		libp2p.EnableAutoNATv2(),
+		libp2p.EnableHolePunching(),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			// Configure DHT with options to limit connection usage
 			idht, err = dht.New(ctx, h,
@@ -167,7 +170,50 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	// Refresh the routing table to help discover peers
 	// idht.RefreshRoutingTable()
 
+	// Start monitoring NAT status and hole punching events
+	go monitorNATStatus(ctx, node)
+
 	return node, idht, err
+}
+
+// logVPNConnectionType logs the connection method when a VPN stream is established
+func logVPNConnectionType(node host.Host, conn network.Conn) {
+	remoteAddr := conn.RemoteMultiaddr().String()
+	localAddr := conn.LocalMultiaddr().String()
+	peerID := conn.RemotePeer().ShortString()
+	direction := conn.Stat().Direction
+
+	// Determine connection type
+	if strings.Contains(remoteAddr, "/p2p-circuit/") {
+		utils.HolePunchLog.Info("🔄 VPN over RELAYED connection with peer %s", peerID)
+		utils.HolePunchLog.Debug("  └─ via circuit relay: %s", remoteAddr)
+		utils.HolePunchLog.Warn("  └─ ⚠ Performance may be degraded (using relay)")
+	} else if strings.Contains(remoteAddr, "/quic") {
+		if direction == network.DirInbound {
+			utils.HolePunchLog.Success("✓ VPN over DIRECT inbound QUIC from peer %s", peerID)
+			utils.HolePunchLog.Debug("  └─ Peer connected to us (hole punch success or we're public)")
+		} else {
+			utils.HolePunchLog.Success("✓ VPN over DIRECT outbound QUIC to peer %s", peerID)
+		}
+		utils.HolePunchLog.Debug("  └─ Local: %s", localAddr)
+		utils.HolePunchLog.Debug("  └─ Remote: %s", remoteAddr)
+	} else if strings.Contains(remoteAddr, "/tcp") {
+		if direction == network.DirInbound {
+			utils.HolePunchLog.Success("✓ VPN over DIRECT inbound TCP from peer %s", peerID)
+		} else {
+			utils.HolePunchLog.Success("✓ VPN over DIRECT outbound TCP to peer %s", peerID)
+		}
+		utils.HolePunchLog.Debug("  └─ Local: %s", localAddr)
+		utils.HolePunchLog.Debug("  └─ Remote: %s", remoteAddr)
+	} else {
+		utils.HolePunchLog.Info("VPN connection established with peer %s", peerID)
+		utils.HolePunchLog.Debug("  └─ Type: %s", remoteAddr)
+	}
+
+	// Check if connection is limited by resource manager
+	if conn.Stat().Limited {
+		utils.HolePunchLog.Warn("  └─ ⚠ VPN connection is RATE LIMITED by resource manager")
+	}
 }
 
 func shouldCloseStream(err error) bool {
@@ -223,6 +269,9 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 		peerID := s.Conn().RemotePeer()
 		streamLog.Info("Starting stream handler for peer: %s", peerID)
 		streamLog.Debug("Node status: %v (true=server, false=client)", utils.IS_NODE_HOST)
+
+		// Log VPN connection type (NAT/hole punching info)
+		logVPNConnectionType(node, s.Conn())
 
 		// CRITICAL: Protect this VPN connection from being pruned by the connection manager
 		// This prevents the connection manager from closing VPN streams when trimming connections
@@ -379,3 +428,71 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 		}()
 	} // end of stream handler function
 } // end of makeStreamHandler
+
+// monitorNATStatus monitors and logs AutoNAT reachability status
+func monitorNATStatus(ctx context.Context, node host.Host) {
+	// Subscribe to AutoNAT reachability events
+	sub, err := node.EventBus().Subscribe(new(event.EvtPeerIdentificationCompleted))
+	if err != nil {
+		utils.NATLog.Error("Failed to subscribe to AutoNAT events: %v", err)
+		return
+	}
+	defer sub.Close()
+
+	utils.NATLog.Info("AutoNAT monitoring started")
+
+	// Check initial reachability status periodically
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	checkReachability := func() {
+		conns := node.Network().Conns()
+		if len(conns) == 0 {
+			utils.NATLog.Debug("No connections yet, reachability unknown")
+			return
+		}
+
+		// Check if we have any public addresses
+		hasPublicAddr := false
+		for _, addr := range node.Addrs() {
+			addrStr := addr.String()
+			// Check if address is not a private IP
+			if !strings.Contains(addrStr, "127.0.0.1") &&
+				!strings.Contains(addrStr, "192.168.") &&
+				!strings.Contains(addrStr, "10.") &&
+				!strings.Contains(addrStr, "172.16.") &&
+				!strings.Contains(addrStr, "172.17.") &&
+				!strings.Contains(addrStr, "172.18.") &&
+				!strings.Contains(addrStr, "172.19.") &&
+				!strings.Contains(addrStr, "172.2") &&
+				!strings.Contains(addrStr, "172.30.") &&
+				!strings.Contains(addrStr, "172.31.") {
+				hasPublicAddr = true
+				utils.NATLog.Debug("Public address detected: %s", addrStr)
+			}
+		}
+
+		if hasPublicAddr {
+			utils.NATLog.Success("✓ Node appears PUBLICLY reachable (has public addresses)")
+		} else {
+			utils.NATLog.Warn("⚠ Node appears behind NAT/firewall (only private addresses)")
+			utils.NATLog.Info("Hole punching or relay will be used for incoming connections")
+		}
+	}
+
+	// Initial check after 5 seconds
+	time.Sleep(5 * time.Second)
+	checkReachability()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// Periodic reachability check
+			checkReachability()
+		case evt := <-sub.Out():
+			_ = evt // Event received, will trigger reachability check on next ticker
+		}
+	}
+}
