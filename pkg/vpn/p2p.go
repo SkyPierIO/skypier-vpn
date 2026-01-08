@@ -75,6 +75,9 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 	resourceManager, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 	utils.Check(err)
 
+	// PERFORMANCE US-2.3: Check and log socket buffer limits at startup
+	CheckSocketBufferLimits()
+
 	// Configure connection manager with limits
 	// Set a low limit for maximum number of peers to connect to (much less than the default 25)
 	p2pLog.Info("Configuring connection manager: LowWater=5, HighWater=15")
@@ -107,7 +110,9 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.Transport(quic.NewTransport),
-		libp2p.Transport(tcp.NewTCPTransport),
+		// PERFORMANCE US-2.3: TCP transport with 8MB socket buffers for higher throughput
+		// Default socket buffers (~200KB) limit throughput on high-latency links
+		libp2p.Transport(tcp.NewTCPTransport, GetTCPTransportOption()),
 		libp2p.NATPortMap(),
 		libp2p.EnableAutoNATv2(),
 		libp2p.EnableHolePunching(),
