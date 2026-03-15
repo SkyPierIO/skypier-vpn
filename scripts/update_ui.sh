@@ -1,15 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-echo -e "\n[+]\tUpdate React app Git submodule..."
-# git submodule update --init --recursive      
-git submodule update --remote      
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo -e "\n[+]\tReact app build..."
+echo -e "\n[+]\tUpdate frontend sources..."
+git -C "${ROOT_DIR}" submodule update --remote
 
-pushd pkg/ui/web
-pnpm i 
-pnpm build
-tree --si dist
-popd
+bash "${ROOT_DIR}/scripts/build-ui.sh"

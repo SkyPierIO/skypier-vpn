@@ -1,7 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUILD_DIR="${ROOT_DIR}/build"
+
+bash "${ROOT_DIR}/scripts/build-ui.sh"
+
+mkdir -p "${BUILD_DIR}"
 
 echo -e "\n[+]\tGo build VPN Node..."
-go build -o build/skypier-vpn-node -ldflags "-s -w" -trimpath -buildvcs=false cmd/skypier-vpn-node/main.go
-tree --si ./build
+go build -o "${BUILD_DIR}/skypier-vpn-node" -ldflags "-s -w" -trimpath -buildvcs=false ./cmd/skypier-vpn-node

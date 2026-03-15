@@ -1,25 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-APP_NAME="skypier-vpn"
-VERSION="0.1.0"
-ARCH="amd64"
-MAINTAINER="Skypier Technologies <info@skypier.io>"
-DESCRIPTION="Skypier VPN is a decentralized VPN leveraging the libp2p framework, which is also used by IPFS and Ethereum. Skypier VPN relies on relay nodes run by the community. Each contributor is rewarded by sharing his unused bandwidth and IP address. Thanks to the relay node hosts, as a simple user, you can browse the internet safely and anonymously by connecting through a Skypier node (pay your subscription with cryptocurrency). This innovative approach ensures privacy and security while contributing to a decentralized internet infrastructure."
-PKG_DIR="${APP_NAME}_${VERSION}_${ARCH}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_NAME="${APP_NAME:-skypier-vpn}"
+VERSION="${VERSION:-0.1.0}"
+ARCH="${ARCH:-amd64}"
+MAINTAINER="${MAINTAINER:-Skypier Technologies <info@skypier.io>}"
+DESCRIPTION="${DESCRIPTION:-Skypier VPN is a decentralized VPN leveraging the libp2p framework, which is also used by IPFS and Ethereum. Skypier VPN relies on relay nodes run by the community. Each contributor is rewarded by sharing unused bandwidth and IP address. Thanks to relay node hosts, users can browse the internet safely and anonymously by connecting through a Skypier node.}"
+DIST_DIR="${DIST_DIR:-${ROOT_DIR}/dist}"
+WORK_DIR="$(mktemp -d)"
+PKG_DIR="${WORK_DIR}/${APP_NAME}_${VERSION}_${ARCH}"
 DEBIAN_DIR="${PKG_DIR}/DEBIAN"
 BIN_DIR="${PKG_DIR}/usr/local/bin"
 OPT_DIR="${PKG_DIR}/opt/skypier"
 DESKTOP_DIR="${PKG_DIR}/usr/share/applications"
+OUTPUT_FILE="${DIST_DIR}/${APP_NAME}_${VERSION}_${ARCH}.deb"
 
-# Create necessary directories
-mkdir -p "${DEBIAN_DIR}"
-mkdir -p "${BIN_DIR}"
-mkdir -p "${OPT_DIR}"
-mkdir -p "${DESKTOP_DIR}"
+trap 'rm -rf "${WORK_DIR}"' EXIT
 
-# Create control file
+bash "${ROOT_DIR}/scripts/build-client.sh"
+
+mkdir -p "${DEBIAN_DIR}" "${BIN_DIR}" "${OPT_DIR}" "${DESKTOP_DIR}" "${DIST_DIR}"
+
 cat <<EOF > "${DEBIAN_DIR}/control"
 Package: ${APP_NAME}
 Version: ${VERSION}
@@ -31,11 +34,10 @@ Maintainer: ${MAINTAINER}
 Description: ${DESCRIPTION}
 EOF
 
-# Create postinst script to create /etc/skypier directory
 cat <<EOF > "${DEBIAN_DIR}/postinst"
-#!/bin/bash
-set -e
-# Create /etc/skypier directory if it doesn't exist
+#!/usr/bin/env bash
+set -euo pipefail
+
 if [ ! -d /etc/skypier ]; then
   mkdir -p /etc/skypier
   chown root:root /etc/skypier
@@ -43,18 +45,13 @@ if [ ! -d /etc/skypier ]; then
 fi
 EOF
 
-# Make postinst script executable
 chmod 755 "${DEBIAN_DIR}/postinst"
 
-# Copy files
-cp ./build/skypier-vpn "${BIN_DIR}/"
-cp ./scripts/linux/start.sh "${OPT_DIR}/"
-cp ./scripts/linux/skypier.svg "${OPT_DIR}/"
-
-# Make start.sh executable
+cp "${ROOT_DIR}/build/skypier-vpn" "${BIN_DIR}/"
+cp "${ROOT_DIR}/scripts/linux/start.sh" "${OPT_DIR}/"
+cp "${ROOT_DIR}/scripts/linux/skypier.svg" "${OPT_DIR}/"
 chmod +x "${OPT_DIR}/start.sh"
 
-# Create the skypier.desktop file
 cat <<EOF > "${DESKTOP_DIR}/skypier.desktop"
 [Desktop Entry]
 Type=Application
@@ -66,10 +63,6 @@ Comment=The web3 VPN
 Categories=Network;VPN;Security;
 EOF
 
-# Build the .deb package
-dpkg-deb --build "${PKG_DIR}"
+dpkg-deb --build "${PKG_DIR}" "${OUTPUT_FILE}"
 
-# Clean up
-rm -rf "${PKG_DIR}"
-
-echo "DEB package ${PKG_DIR}.deb created successfully."
+echo "DEB package created: ${OUTPUT_FILE}"
