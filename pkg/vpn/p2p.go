@@ -82,7 +82,7 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 		5,  // LowWater - below this we'll accept new connections
 		15, // HighWater - above this we'll prune connections
 		connmgr.WithGracePeriod(time.Second*10), // Much shorter grace period - 30 seconds instead of 5 minutes
-		connmgr.WithEmergencyTrim(true),         // Allow emergency trimming if we run out of file descriptors
+		// connmgr.WithEmergencyTrim(true),         // Allow emergency trimming if we run out of file descriptors
 	)
 	if err != nil {
 		p2pLog.Error("Failed to create connection manager: %v", err)

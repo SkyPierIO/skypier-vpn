@@ -1,14 +1,14 @@
 package vpn
 
 import (
-"log"
-"runtime"
+	"log"
+	"runtime"
 )
 
 var (
-// Store original routing information to restore later
-originalDefaultGateway string
-isRoutingModified      bool
+	// Store original routing information to restore later
+	originalDefaultGateway string
+	isRoutingModified      bool
 )
 
 // SaveOriginalRouting stores the current default gateway before modifying routes

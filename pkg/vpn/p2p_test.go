@@ -26,10 +26,9 @@ func TestP2PNode(t *testing.T) {
 	tcpPort := "0" // Using port 0 lets the OS assign an available port
 	pk := generateMockPrivateKey()
 	connmgr, _ := connmgr.NewConnManager(
-		5,                               // LowWater - below this we'll accept new connections
-		10,                              // HighWater - above this we'll prune connections
-		connmgr.WithGracePeriod(0),      // No grace period for tests
-		connmgr.WithEmergencyTrim(true), // Allow emergency trimming if we run out of file descriptors
+		5,                          // LowWater - below this we'll accept new connections
+		10,                         // HighWater - above this we'll prune connections
+		connmgr.WithGracePeriod(0), // No grace period for tests
 	)
 	resourceManager, _ := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 

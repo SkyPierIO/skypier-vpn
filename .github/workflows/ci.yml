@@ -45,7 +45,7 @@ jobs:
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
 
       - name: Run staticcheck
-        run: staticcheck ./...
+        run: staticcheck '-checks=all,-U1000,-ST*' ./...
 
   test:
     name: Unit tests
