@@ -17,7 +17,7 @@ jobs:
         submodules: recursive
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 1.24
 
@@ -111,7 +111,7 @@ jobs:
         working-directory: pkg/ui/web
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: 1.22
       - name: Build
