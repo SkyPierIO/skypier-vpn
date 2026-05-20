@@ -2,8 +2,11 @@ package utils
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,12 +21,98 @@ type InnerConfig struct {
 
 // Config loaded from the configuration file
 type Config struct {
-	Nickname                  string `json:"nickname"`
-	LogLevel                  string `json:"logLevel"` // "debug", "info", "warn", "error" (default: "info")
-	PrivateKey                string `json:"privateKey"`
-	AdvertisePrivateAddresses bool   `json:"advertisePrivateAddresses"`
-	SwaggerEnabled            bool   `json:"swaggerEnabled"`
-	DHTDiscovery              bool   `json:"dhtDiscovery"`
+	Nickname                    string   `json:"nickname"`
+	LogLevel                    string   `json:"logLevel"` // "debug", "info", "warn", "error" (default: "info")
+	PrivateKey                  string   `json:"privateKey"`
+	AdvertisePrivateAddresses   bool     `json:"advertisePrivateAddresses"`
+	SwaggerEnabled              bool     `json:"swaggerEnabled"`
+	DHTDiscovery                bool     `json:"dhtDiscovery"`
+	NodeEnvironment             string   `json:"nodeEnvironment"`
+	NodeTopicName               string   `json:"nodeTopicName"`
+	NodeAnnouncementInterval    int      `json:"nodeAnnouncementIntervalSeconds"`
+	NodeMetadataTTL             int      `json:"nodeMetadataTTLSeconds"`
+	NodePubSubEnabled           bool     `json:"nodePubSubEnabled"`
+	NodeRequireFreshForDial     bool     `json:"nodeRequireFreshForDial"`
+	NodePubSubSeedPeers         []string `json:"nodePubSubSeedPeers"`
+	NodePubSubMeshTargetPeers   int      `json:"nodePubSubMeshTargetPeers"`
+	NodePubSubReconnectInterval int      `json:"nodePubSubReconnectIntervalSeconds"`
+}
+
+const defaultNodePubSubBootstrapPeerID = "16Uiu2HAkzHV1aH5R7rhayKSkUUMnXJa9EtU94SBHZUZJ5PPQauFd"
+
+func defaultConfig() Config {
+	return Config{
+		Nickname:                    "MySkypierNode",
+		LogLevel:                    "info",
+		PrivateKey:                  "",
+		AdvertisePrivateAddresses:   false,
+		SwaggerEnabled:              true,
+		DHTDiscovery:                false,
+		NodeEnvironment:             "production",
+		NodeTopicName:               "skypier-vpn-nodes-v1",
+		NodeAnnouncementInterval:    20,
+		NodeMetadataTTL:             120,
+		NodePubSubEnabled:           true,
+		NodeRequireFreshForDial:     true,
+		NodePubSubSeedPeers:         []string{defaultNodePubSubBootstrapPeerID},
+		NodePubSubMeshTargetPeers:   3,
+		NodePubSubReconnectInterval: 30,
+	}
+}
+
+func applyConfigDefaults(config *Config) {
+	defaults := defaultConfig()
+
+	if config.Nickname == "" {
+		config.Nickname = defaults.Nickname
+	}
+	if config.LogLevel == "" {
+		config.LogLevel = defaults.LogLevel
+	}
+	if config.NodeEnvironment == "" {
+		config.NodeEnvironment = defaults.NodeEnvironment
+	}
+	if config.NodeTopicName == "" {
+		config.NodeTopicName = defaults.NodeTopicName
+	}
+	if config.NodeAnnouncementInterval <= 0 {
+		config.NodeAnnouncementInterval = defaults.NodeAnnouncementInterval
+	}
+	if config.NodeMetadataTTL <= 0 {
+		config.NodeMetadataTTL = defaults.NodeMetadataTTL
+	}
+	if config.NodePubSubMeshTargetPeers <= 0 {
+		config.NodePubSubMeshTargetPeers = defaults.NodePubSubMeshTargetPeers
+	}
+	if config.NodePubSubReconnectInterval <= 0 {
+		config.NodePubSubReconnectInterval = defaults.NodePubSubReconnectInterval
+	}
+	if len(config.NodePubSubSeedPeers) == 0 {
+		config.NodePubSubSeedPeers = append([]string{}, defaults.NodePubSubSeedPeers...)
+	}
+	config.NodePubSubSeedPeers = normalizeSeedPeers(config.NodePubSubSeedPeers)
+}
+
+func normalizeSeedPeers(seedPeers []string) []string {
+	if len(seedPeers) == 0 {
+		return []string{}
+	}
+
+	seen := make(map[string]struct{}, len(seedPeers))
+	normalized := make([]string, 0, len(seedPeers))
+	for _, seed := range seedPeers {
+		trimmed := strings.TrimSpace(seed)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+
+	return normalized
 }
 
 func LoadConfiguration(file string) (Config, error) {
@@ -34,12 +123,31 @@ func LoadConfiguration(file string) (Config, error) {
 	var config Config
 	configFile, err := os.Open(file)
 	if err != nil {
-		config = Config{"MySkypierNode", "info", "", false, true, false}
+		config = defaultConfig()
 		return config, err
 	} else {
 		defer configFile.Close()
-		jsonParser := json.NewDecoder(configFile)
-		jsonParser.Decode(&config)
+
+		rawContent, readErr := io.ReadAll(configFile)
+		if readErr != nil {
+			return defaultConfig(), readErr
+		}
+
+		if err := json.Unmarshal(rawContent, &config); err != nil {
+			return defaultConfig(), err
+		}
+
+		var rawFields map[string]json.RawMessage
+		if err := json.Unmarshal(rawContent, &rawFields); err == nil {
+			if _, exists := rawFields["nodePubSubEnabled"]; !exists {
+				config.NodePubSubEnabled = true
+			}
+			if _, exists := rawFields["nodeRequireFreshForDial"]; !exists {
+				config.NodeRequireFreshForDial = true
+			}
+		}
+
+		applyConfigDefaults(&config)
 		return config, nil
 	}
 }
@@ -105,16 +213,25 @@ func UpdateConfiguration(c *gin.Context) {
 // func SetConfiguration(c *gin.Context) {}
 
 func checkFileExists(filePath string) bool {
-	_, error := os.Open(filePath) // For read access.
-	return error == nil
+	_, err := os.Stat(filePath)
+	return err == nil
+}
+
+func ensureConfigDir(file string) error {
+	configDir := filepath.Dir(file)
+	return os.MkdirAll(configDir, 0755)
 }
 
 func InitConfiguration(file string) error {
+	if err := ensureConfigDir(file); err != nil {
+		return err
+	}
+
 	if checkFileExists(file) {
 		return nil
 	} else {
 		log.Println("Init configuration")
-		config := Config{"MySkypierNode", "info", "", false, true, false}
+		config := defaultConfig()
 		content, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return err
@@ -128,7 +245,10 @@ func InitConfiguration(file string) error {
 }
 
 func SaveConfig(config Config) error {
+	applyConfigDefaults(&config)
 	content, err := json.MarshalIndent(config, "", "    ")
+	Check(err)
+	err = ensureConfigDir("/etc/skypier/config.json")
 	Check(err)
 	err = os.WriteFile("/etc/skypier/config.json", content, 0664)
 	Check(err)
