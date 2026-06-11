@@ -498,9 +498,9 @@ func monitorNATStatus(ctx context.Context, node host.Host) {
 		}
 
 		if hasPublicAddr {
-			utils.NATLog.Success("✓ Node appears PUBLICLY reachable (has public addresses)")
+			utils.NATLog.Success("Node appears PUBLICLY reachable (has public addresses)")
 		} else {
-			utils.NATLog.Warn("⚠ Node appears behind NAT/firewall (only private addresses)")
+			utils.NATLog.Warn("Node appears behind NAT/firewall (only private addresses)")
 			utils.NATLog.Info("Hole punching or relay will be used for incoming connections")
 		}
 	}
