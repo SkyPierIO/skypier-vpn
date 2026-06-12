@@ -30,7 +30,8 @@ import (
 var (
 	// tunEnabled bool
 	// nodeIface  *water.Interface
-	stopChan = make(chan struct{})
+	stopChan               = make(chan struct{})
+	skypierBootstrapPeerID = "16Uiu2HAkzHV1aH5R7rhayKSkUUMnXJa9EtU94SBHZUZJ5PPQauFd"
 	// Connection manager to handle multiple concurrent clients
 	connectionManager = NewConnectionManager()
 
@@ -67,10 +68,7 @@ func displayNodeInfo(node host.Host) {
 }
 
 // StartNode initializes and starts a libp2p node
-func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
-	// The context governs the lifetime of the libp2p node.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func StartNode(ctx context.Context, innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string, udpPort string) (host.Host, *dht.IpfsDHT, error) {
 
 	resourceManager, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
 	utils.Check(err)
@@ -154,6 +152,36 @@ func StartNode(innerConfig utils.InnerConfig, pk crypto.PrivKey, tcpPort string,
 			continue
 		}
 		dhtLog.Success("Connected to bootstrap peer: %s", pi.ID)
+	}
+
+	// Resolve and connect to the SkyPier bootstrap peer in addition to public IPFS peers.
+	skypierBootstrapID, err := peerstore.Decode(skypierBootstrapPeerID)
+	if err != nil {
+		dhtLog.Warn("Invalid SkyPier bootstrap peer id %s: %v", skypierBootstrapPeerID, err)
+	} else if skypierBootstrapID == node.ID() {
+		dhtLog.Info("Skipping SkyPier bootstrap peer %s because it matches local node ID", skypierBootstrapID)
+	} else if node.Network().Connectedness(skypierBootstrapID) == network.Connected {
+		dhtLog.Info("Already connected to SkyPier bootstrap peer: %s", skypierBootstrapID)
+	} else if idht == nil {
+		dhtLog.Warn("Cannot resolve SkyPier bootstrap peer %s because DHT is unavailable", skypierBootstrapID)
+	} else {
+		resolveCtx, resolveCancel := context.WithTimeout(ctx, 8*time.Second)
+		defer resolveCancel()
+
+		dhtLog.Info("Resolving SkyPier bootstrap peer %s via DHT", skypierBootstrapID)
+		addrInfo, findErr := idht.FindPeer(resolveCtx, skypierBootstrapID)
+		if findErr != nil {
+			dhtLog.Warn("Failed to resolve SkyPier bootstrap peer %s via DHT: %v", skypierBootstrapID, findErr)
+		} else {
+			dialCtx, dialCancel := context.WithTimeout(ctx, 8*time.Second)
+			connectErr := node.Connect(dialCtx, addrInfo)
+			dialCancel()
+			if connectErr != nil {
+				dhtLog.Warn("Failed to connect to SkyPier bootstrap peer %s: %v", skypierBootstrapID, connectErr)
+			} else {
+				dhtLog.Success("Connected to SkyPier bootstrap peer: %s", skypierBootstrapID)
+			}
+		}
 	}
 
 	streamLog.Info("Enabling stream handler...")
@@ -247,7 +275,7 @@ func SetNodeUp(ctx context.Context, config utils.InnerConfig) (host.Host, *dht.I
 	tcpPort := utils.GetFirstAvailableTCPPort(4002, 4999)
 	udpPort := utils.GetFirstAvailableTCPPort(4002, 4999)
 
-	node, dht, err := StartNode(config, privKey, tcpPort, udpPort)
+	node, dht, err := StartNode(ctx, config, privKey, tcpPort, udpPort)
 	utils.Check(err)
 
 	// Set up stream watcher to monitor for disconnections
@@ -473,9 +501,9 @@ func monitorNATStatus(ctx context.Context, node host.Host) {
 		}
 
 		if hasPublicAddr {
-			utils.NATLog.Success("✓ Node appears PUBLICLY reachable (has public addresses)")
+			utils.NATLog.Success("Node appears PUBLICLY reachable (has public addresses)")
 		} else {
-			utils.NATLog.Warn("⚠ Node appears behind NAT/firewall (only private addresses)")
+			utils.NATLog.Warn("Node appears behind NAT/firewall (only private addresses)")
 			utils.NATLog.Info("Hole punching or relay will be used for incoming connections")
 		}
 	}

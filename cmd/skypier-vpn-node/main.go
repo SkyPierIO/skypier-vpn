@@ -64,6 +64,10 @@ func main() {
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
 
+	if err := vpn.StartNodeMetadataAnnouncer(ctx, node, dht); err != nil {
+		log.Printf("Failed to start node metadata announcer: %v", err)
+	}
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
@@ -86,7 +90,7 @@ func main() {
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
-	api.GET("/connect/:peerId", vpn.Connect(node, dht))
+	api.GET("/connect/:peerId", vpn.Connect(node, dht, nil))
 	api.GET("/connections", vpn.GetConnectionsTable)
 
 	// Run with HTTP

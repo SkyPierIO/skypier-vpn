@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	docs "github.com/SkyPierIO/skypier-vpn/pkg/docs"
 	swaggerfiles "github.com/swaggo/files"
@@ -96,6 +97,11 @@ func main() {
 
 	// go vpn.SetInterfaceUp()
 	node, dht := vpn.SetNodeUp(ctx, innerConfig)
+	nodeRegistry := vpn.NewNodeRegistry(time.Duration(config.NodeMetadataTTL) * time.Second)
+	if err := vpn.StartNodeMetadataSubscriber(ctx, node, dht, nodeRegistry); err != nil {
+		log.Printf("Failed to start node metadata subscriber: %v", err)
+	}
+
 	if config.DHTDiscovery {
 		go vpn.DiscoverPeersWithKademlia(ctx, node, dht)
 	}
@@ -129,12 +135,14 @@ func main() {
 	api.GET("/connections", vpn.GetConnectionsTable)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.POST("/updateConfig", utils.UpdateConfiguration)
-	api.GET("/connect/:peerId", vpn.Connect(node, dht))
+	api.GET("/connect/:peerId", vpn.Connect(node, dht, nodeRegistry))
 	api.GET("/peer/:peerId/info", vpn.GetPeerIPAddresses(node, dht))
 	api.GET("/disconnect/:peerId", vpn.Disconnect(node, dht))
 	api.GET("/connected_peers_count", vpn.GetConnectedPeersCount(node, dht))
 	api.GET("/stats/:peerId", vpn.GetConnectionStats())
 	api.GET("/stats", vpn.GetAllConnectionStats())
+	api.GET("/nodes", vpn.GetNodeRegistryEntries(nodeRegistry))
+	api.GET("/nodes/:peerId", vpn.GetNodeRegistryEntry(nodeRegistry))
 
 	// Add a route for Swagger UI if requested in the configuration
 	if config.SwaggerEnabled {
