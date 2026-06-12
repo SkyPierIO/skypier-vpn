@@ -219,7 +219,7 @@ func checkFileExists(filePath string) bool {
 
 func ensureConfigDir(file string) error {
 	configDir := filepath.Dir(file)
-	return os.MkdirAll(configDir, 0755)
+	return os.MkdirAll(configDir, 0700)
 }
 
 func InitConfiguration(file string) error {
