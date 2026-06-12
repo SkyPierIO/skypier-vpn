@@ -250,7 +250,7 @@ func SaveConfig(config Config) error {
 	Check(err)
 	err = ensureConfigDir("/etc/skypier/config.json")
 	Check(err)
-	err = os.WriteFile("/etc/skypier/config.json", content, 0664)
+	err = os.WriteFile("/etc/skypier/config.json", content, 0600)
 	Check(err)
 	return nil
 }
