@@ -35,7 +35,7 @@ func (sw *StreamWatcher) RegisterHost(ctx context.Context, notifBundle *network.
 // onConnected is called when a peer connects
 func (sw *StreamWatcher) onConnected(net network.Network, conn network.Conn) {
 	peerID := conn.RemotePeer()
-	watcherLog.Debug("+ Peer connected: %s via %s (%s)",
+	watcherLog.Debug("Peer connected: %s via %s (%s)",
 		peerID.String(),
 		conn.RemoteMultiaddr().String(),
 		conn.Stat().Direction.String())
