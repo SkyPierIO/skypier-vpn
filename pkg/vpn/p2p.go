@@ -173,7 +173,10 @@ func StartNode(ctx context.Context, innerConfig utils.InnerConfig, pk crypto.Pri
 		if findErr != nil {
 			dhtLog.Warn("Failed to resolve SkyPier bootstrap peer %s via DHT: %v", skypierBootstrapID, findErr)
 		} else {
-			if connectErr := node.Connect(ctx, addrInfo); connectErr != nil {
+			dialCtx, dialCancel := context.WithTimeout(ctx, 8*time.Second)
+			connectErr := node.Connect(dialCtx, addrInfo)
+			dialCancel()
+			if connectErr != nil {
 				dhtLog.Warn("Failed to connect to SkyPier bootstrap peer %s: %v", skypierBootstrapID, connectErr)
 			} else {
 				dhtLog.Success("Connected to SkyPier bootstrap peer: %s", skypierBootstrapID)
