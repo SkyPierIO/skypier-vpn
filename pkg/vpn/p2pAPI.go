@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -464,8 +463,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT, registry *NodeRegistry) gin.Handl
 }
 
 func isForceDialRequested(c *gin.Context) bool {
-	force := strings.ToLower(strings.TrimSpace(c.Query("force")))
-	return force == "1" || force == "true" || force == "yes" || force == "on"
+	return parseTruthy(c.Query("force"))
 }
 
 // Disconnect function to handle the disconnect endpoint
