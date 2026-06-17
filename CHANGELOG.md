@@ -88,4 +88,60 @@ the IP negotiation handshake that the new pump exposed.
   of `Error copying data: too many segments` lines and silent packet loss. The
   batched read path provides enough buffers to receive the whole super-packet.
 
+## [0.1.0] - 2024-11-16
+
+First Minimum Viable Product (MVP) of the libp2p-based decentralized VPN.
+Released for Linux amd64, macOS amd64, and macOS arm64 (Apple M series).
+
+> Note: the macOS dmg is not yet signed or notarized.
+
+### Added
+
+- **VPN node ranking by geolocation.** Find and connect to the best VPN nodes
+  based on their geographical location.
+- **Disconnection control.** Disconnect from the VPN in a single action.
+- **Quit program control.** Exit the Skypier VPN application from the UI.
+- **Node bookmarks.** Save favorite VPN nodes for quick access.
+- **Geolocation test.** Verify that the client IP is hidden.
+- **Wallet authentication and NFT subscription checking.** Authenticate with a
+  wallet and check NFT subscription status.
+- **Peer data cache.** Cache per-peer data such as peer ID, IP address, and
+  status to reduce network load.
+- **Node discovery.** Enable libp2p node discovery for improved DHT querying.
+- **Resource and connection manager.** Bound resource usage and the number of
+  connections instantiated on the P2P network.
+
+### Changed
+
+- **Reduced XHR requests.** Adopted Metamask Jazzicons to cut calls to a
+  third-party API.
+
+## [0.0.2] - 2024-11-03
+
+Pre-release of the libp2p-based decentralized VPN MVP.
+Released for Linux amd64, macOS amd64, and macOS arm64 (Apple M series).
+
+> Note: the macOS dmg is not yet signed or notarized.
+
+### Added
+
+- **VPN node ranking by geolocation.** Find and connect to the best VPN nodes
+  based on their geographical location.
+- **Disconnection control.** Disconnect from the VPN in a single action.
+- **Quit program control.** Exit the Skypier VPN application from the UI.
+- **Node bookmarks.** Save favorite VPN nodes for quick access.
+- **Geolocation test.** Verify that the client IP is hidden.
+- **Wallet authentication and NFT subscription checking.** Authenticate with a
+  wallet and check NFT subscription status.
+- **Node discovery.** Enable libp2p node discovery for improved DHT querying.
+- **Resource and connection manager.** Bound resource usage and the number of
+  connections instantiated on the P2P network.
+
+## [0.0.1] - 2024-05-14
+
+Initial pre-release of Skypier VPN.
+
 [Unreleased]: https://github.com/SkyPierIO/skypier-vpn/compare/0.1.0...HEAD
+[0.1.0]: https://github.com/SkyPierIO/skypier-vpn/compare/0.0.2...0.1.0
+[0.0.2]: https://github.com/SkyPierIO/skypier-vpn/compare/0.0.1...0.0.2
+[0.0.1]: https://github.com/SkyPierIO/skypier-vpn/releases/tag/0.0.1
