@@ -7,7 +7,6 @@ import (
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/songgao/water"
 )
 
 var (
@@ -19,7 +18,7 @@ var (
 type ConnectionContext struct {
 	PeerID        peer.ID          // ID of the connected peer
 	Stream        network.Stream   // libp2p stream for communication with the peer
-	Interface     *water.Interface // TUN interface for this connection
+	Interface     *WGTunDevice     // TUN interface for this connection
 	InterfaceName string           // Name of this connection's TUN interface
 	LocalIP       string           // Local IP for this TUN interface
 	RemoteIP      string           // Remote IP for this TUN interface

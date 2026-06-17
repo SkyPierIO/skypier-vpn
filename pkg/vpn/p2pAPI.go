@@ -257,7 +257,7 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 
 		// CRITICAL: Protect this VPN connection from being pruned by the connection manager
 		// This prevents the connection manager from closing VPN streams when trimming connections
-		log.Printf("🛡️ Protecting VPN connection for peer %s from connection manager pruning", pi.ID)
+		log.Printf("Protecting VPN connection for peer %s from connection manager pruning", pi.ID)
 		node.ConnManager().Protect(pi.ID, "skypier-vpn")
 
 		// Create a new connection context to track this connection
@@ -315,11 +315,6 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		log.Println(res)
 		c.IndentedJSON(200, gin.H{"result": res, "local_ip": localIP, "remote_ip": remoteIP})
 
-		// Create buffer for data transfer
-		// Use a larger buffer for better throughput (64KB instead of MTU-sized 1500)
-		// This reduces syscall overhead significantly for bulk transfers
-		buf_mtu := make([]byte, 65536)
-
 		// Initialize stats tracking for this connection
 		connStats := GetGlobalStats().GetOrCreate(conn.PeerID)
 
@@ -329,38 +324,18 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		go func() {
 			defer func() {
 				// Unprotect the connection when the handler exits
-				log.Printf("🛡️ Removing protection for peer %s (outgoing handler exit)", conn.PeerID)
+				log.Printf("Removing protection for peer %s (outgoing handler exit)", conn.PeerID)
 				node.ConnManager().Unprotect(conn.PeerID, "skypier-vpn")
 				conn.CloseStream()
 				// Remove stats when connection ends
 				GetGlobalStats().Remove(conn.PeerID)
 			}()
-			for {
-				select {
-				case <-conn.StopChan:
-					log.Printf("Stopping outgoing data handler for peer %s", conn.PeerID)
-					return
-				default:
-					// Create a safe stream wrapper that handles closed streams gracefully
-					safeStream := NewSafeStreamWrapper(conn)
-					// Use CopyWithCallback for real-time stats tracking
-					n, err := utils.CopyWithCallback(safeStream, conn.Interface, buf_mtu, func(bytes int64) {
-						connStats.RecordBytesSent(bytes)
-					})
-					log.Printf("➡️ %d bytes copied from %s to stream", n, conn.InterfaceName)
-					if err != nil {
-						if err == ErrStreamClosed {
-							log.Printf("Stream closed, stopping outgoing data handler for peer %s", conn.PeerID)
-							return
-						}
-						log.Printf("🚨🚨🚨 Error copying data: %v", err)
-						if shouldCloseStream(err) {
-							// Use the stream watcher to handle the connection error properly
-							streamWatcher := NewStreamWatcher(connectionManager)
-							streamWatcher.OnConnectionError(conn.PeerID, err)
-							return
-						}
-					}
+			err := conn.pumpTunToStream(connStats)
+			if err != nil && err != ErrStreamClosed {
+				log.Printf("Error copying TUN->stream for peer %s: %v", conn.PeerID, err)
+				if shouldCloseStream(err) {
+					streamWatcher := NewStreamWatcher(connectionManager)
+					streamWatcher.OnConnectionError(conn.PeerID, err)
 				}
 			}
 		}()
@@ -368,52 +343,11 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		// Incoming data: Stream -> TUN
 		go func() {
 			defer conn.CloseStream()
-			zeroReadCount := 0
-			const maxZeroReads = 10 // Allow some zero reads before considering it a disconnect
-			for {
-				select {
-				case <-conn.StopChan:
-					log.Printf("Stopping incoming data handler for peer %s", conn.PeerID)
-					return
-				default:
-					// Use the same safe stream wrapper for reading
-					safeStream := NewSafeStreamWrapper(conn)
-					// Use CopyWithCallback for real-time stats tracking
-					n, err := utils.CopyWithCallback(conn.Interface, safeStream, buf_mtu, func(bytes int64) {
-						connStats.RecordBytesReceived(bytes)
-					})
-					if err != nil {
-						if err == ErrStreamClosed {
-							log.Printf("Stream closed, stopping incoming data handler for peer %s", conn.PeerID)
-							return
-						}
-						if err.Error() == "short buffer" {
-							continue // 0 bytes copied, continue
-						}
-						if n != 0 {
-							log.Printf("⬅️ %d bytes copied from stream to %s", n, conn.InterfaceName)
-							log.Printf("🚨🚨🚨 Error copying data: %v", err)
-						}
-						if shouldCloseStream(err) {
-							connectionManager.StopConnection(conn.PeerID)
-							return
-						}
-					} else {
-						if n == 0 {
-							zeroReadCount++
-							if zeroReadCount >= maxZeroReads {
-								log.Printf("🚨🚨🚨 Too many zero-byte reads (%d) for peer %s, closing stream", zeroReadCount, conn.PeerID)
-								connectionManager.StopConnection(conn.PeerID)
-								return
-							}
-							// Brief sleep to prevent busy loop during idle periods
-							// Reduced from 10ms to 1ms for lower latency
-							time.Sleep(1 * time.Millisecond)
-							continue
-						}
-						// Reset counter on successful read
-						zeroReadCount = 0
-					}
+			err := conn.pumpStreamToTun(connStats)
+			if err != nil && err != ErrStreamClosed {
+				log.Printf("Error copying stream->TUN for peer %s: %v", conn.PeerID, err)
+				if shouldCloseStream(err) {
+					connectionManager.StopConnection(conn.PeerID)
 				}
 			}
 		}() // Add routing for this specific connection
@@ -451,7 +385,7 @@ func Disconnect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		}
 
 		// Unprotect the VPN connection to allow the connection manager to clean it up
-		log.Printf("🛡️ Removing protection for peer %s (disconnect)", peerID)
+		log.Printf("Removing protection for peer %s (disconnect)", peerID)
 		node.ConnManager().Unprotect(peerID, "skypier-vpn")
 
 		// First close the stream safely

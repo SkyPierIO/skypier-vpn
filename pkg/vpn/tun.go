@@ -8,21 +8,41 @@ import (
 	"sync"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
-	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
+	wgtun "golang.zx2c4.com/wireguard/tun"
 )
 
+func runCmd(name string, args ...string) error {
+	out, err := exec.Command(name, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %v: %w (output: %s)", name, args, err, out)
+	}
+	return nil
+}
+
+// VPN_TUN_MTU is the MTU advertised to the OS for VPN tunnel interfaces.
+//
+// 1500 (ethernet) minus tunnel overhead:
+//   QUIC/UDP headers  ~40 bytes
+//   QUIC packet hdr   ~25 bytes
+//   Noise AEAD tag    ~16 bytes
+//   yamux frame hdr   ~12 bytes
+//   length prefix       4 bytes
+//   headroom           ~3 bytes
+// Total overhead ~100 bytes → 1400 gives a safe margin and avoids outer
+// IP fragmentation, which silently hurts QUIC retransmit behaviour.
+const VPN_TUN_MTU = 1400
+
 var (
-	// Removed unused localIP variable
 	InterfaceName string
-	ifaceLocker   sync.Mutex // Global lock for TUN interface creation
+	ifaceLocker   sync.Mutex
 	tunLog        = utils.TUNLog
 )
 
 // SubnetRegistry keeps track of allocated subnets to avoid conflicts
 var SubnetRegistry = struct {
 	sync.RWMutex
-	allocatedSubnets map[string]bool // Map of allocated subnet prefixes (e.g., "10.1.1")
+	allocatedSubnets map[string]bool
 }{
 	allocatedSubnets: make(map[string]bool),
 }
@@ -32,7 +52,6 @@ func AllocateSubnet() string {
 	SubnetRegistry.Lock()
 	defer SubnetRegistry.Unlock()
 
-	// Start with 10.1.1 and try to find an available subnet
 	for i := 1; i < 256; i++ {
 		for j := 1; j < 256; j++ {
 			subnet := fmt.Sprintf("10.%d.%d", i, j)
@@ -44,9 +63,8 @@ func AllocateSubnet() string {
 		}
 	}
 
-	// If we get here, we've run out of subnets!
 	tunLog.Warn("No more subnets available, reusing 10.1.1")
-	return "10.1.1" // Fallback to default
+	return "10.1.1"
 }
 
 // ReleaseSubnet marks a subnet as available again
@@ -54,7 +72,6 @@ func ReleaseSubnet(subnet string) {
 	SubnetRegistry.Lock()
 	defer SubnetRegistry.Unlock()
 
-	// Extract the subnet prefix (e.g., "10.1.1" from "10.1.1.1")
 	parts := strings.Split(subnet, ".")
 	if len(parts) >= 3 {
 		prefix := fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
@@ -63,66 +80,40 @@ func ReleaseSubnet(subnet string) {
 	}
 }
 
-// getAvailableTunInterface finds an unused TUN interface name and appropriate IPs
+// getAvailableTunInterface returns an interface name (or hint for macOS) and
+// a pair of private IPs for the new tunnel endpoint.
 func getAvailableTunInterface() (string, string, string) {
 	ifaceLocker.Lock()
 	defer ifaceLocker.Unlock()
 
-	// Allocate a unique subnet for this connection
 	subnet := AllocateSubnet()
 	localIP := fmt.Sprintf("%s.1", subnet)
 	remoteIP := fmt.Sprintf("%s.2", subnet)
 
 	var ifaceName string
 
-	// Choose interface name based on operating system
 	switch runtime.GOOS {
 	case "darwin":
-		// On macOS, try to find an available utun interface
-		for i := 0; i < 256; i++ {
-			candidate := fmt.Sprintf("utun%d", i)
-			// Try to use the netstat command to check if the interface exists
-			cmd := exec.Command("netstat", "-ni")
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				tunLog.Warn("Failed to run netstat: %v", err)
-				break
-			}
-
-			// If the interface name doesn't appear in netstat output, it's likely available
-			if !strings.Contains(string(output), candidate) {
-				ifaceName = candidate
-				break
-			}
-		}
-
-		// If we couldn't find an available interface, let the OS choose one
-		if ifaceName == "" {
-			ifaceName = "" // Empty string means let macOS choose
-			tunLog.Debug("Letting macOS choose TUN interface name")
-		}
+		// Pass "utun" — wireguard-go asks the kernel to assign the next free
+		// utun index. We retrieve the real name from dev.Name() after creation.
+		ifaceName = "utun"
 
 	case "linux", "android":
-		// On Linux, we try to use sequential tun names
 		for i := 0; i < 256; i++ {
 			candidate := fmt.Sprintf("utun%d", i)
 			_, err := netlink.LinkByName(candidate)
 			if err != nil {
-				// Interface doesn't exist, we can use this name
 				ifaceName = candidate
 				tunLog.Debug("Found available TUN interface: %s", ifaceName)
 				break
 			}
 		}
-
-		// If all interfaces are taken (unlikely), use a default
 		if ifaceName == "" {
 			ifaceName = "skypier0"
 			tunLog.Debug("Using default interface: %s", ifaceName)
 		}
 
 	default:
-		tunLog.Error("Unsupported OS: %s", runtime.GOOS)
 		panic(fmt.Sprintf("Unsupported operating system: %s", runtime.GOOS))
 	}
 
@@ -132,37 +123,38 @@ func getAvailableTunInterface() (string, string, string) {
 	return ifaceName, localIP, remoteIP
 }
 
-// SetInterfaceUpForConnection creates a new TUN interface for a specific connection
-func SetInterfaceUpForConnection() (*water.Interface, string, string, string) {
+// SetInterfaceUpForConnection creates a new TUN interface for a connection.
+// It returns a WGTunDevice (wrapping wireguard-go's tun.Device) together with
+// the resolved interface name and the two tunnel endpoint IPs.
+func SetInterfaceUpForConnection() (*WGTunDevice, string, string, string) {
 	ifaceName, localIPAddr, remoteIPAddr := getAvailableTunInterface()
 
-	// Store the global interface name for backward compatibility
-	InterfaceName = ifaceName
-
-	config := water.Config{
-		DeviceType: water.TUN,
-	}
-	config.Name = ifaceName
-
-	// Create a new TUN/TAP interface using config.
-	iface, err := water.New(config)
+	dev, err := wgtun.CreateTUN(ifaceName, VPN_TUN_MTU)
 	if err != nil {
-		tunLog.Error("Failed to create TUN interface: %v", err)
+		tunLog.Error("Failed to create TUN interface %s: %v", ifaceName, err)
 		panic(err)
 	}
 
-	tunLog.Success("TUN interface up: %s", ifaceName)
+	// On macOS the kernel assigns the actual utunN index; on Linux the name
+	// is what we requested.
+	actualName, err := dev.Name()
+	if err != nil {
+		tunLog.Error("Failed to query TUN interface name: %v", err)
+		panic(err)
+	}
+	InterfaceName = actualName
+
+	tunLog.Success("TUN interface up: %s (MTU %d)", actualName, VPN_TUN_MTU)
 
 	if runtime.GOOS == "darwin" {
-		// macOS specific configuration
-		err := configureTunMacOS(ifaceName, localIPAddr, remoteIPAddr)
-		if err != nil {
+		if err := configureTunMacOS(actualName, localIPAddr, remoteIPAddr); err != nil {
 			tunLog.Error("Failed to configure macOS TUN: %v", err)
 			panic(err)
 		}
 	} else {
-		// Linux specific configuration
-		pierIface, _ := netlink.LinkByName(ifaceName)
+		// Linux: wireguard-go already set the MTU via IOCTL — only add the
+		// IP address and bring the link up.
+		pierIface, _ := netlink.LinkByName(actualName)
 		var addr *netlink.Addr
 		if utils.IS_NODE_HOST {
 			addr, _ = netlink.ParseAddr(remoteIPAddr + "/24")
@@ -170,100 +162,76 @@ func SetInterfaceUpForConnection() (*water.Interface, string, string, string) {
 			addr, _ = netlink.ParseAddr(localIPAddr + "/24")
 		}
 		netlink.AddrAdd(pierIface, addr)
-
-		err := netlink.LinkSetMTU(pierIface, 1500) // MTU set to 1500 for standard MTU
-		if err != nil {
-			tunLog.Error("Failed to set MTU: %v", err)
-			panic(err)
-		}
-
 		netlink.LinkSetUp(pierIface)
 	}
-	return iface, ifaceName, localIPAddr, remoteIPAddr
+
+	return newWGTunDevice(dev), actualName, localIPAddr, remoteIPAddr
 }
 
-// Legacy method for backward compatibility
-func SetInterfaceUp() *water.Interface {
+// SetInterfaceUp is kept for backward compatibility.
+func SetInterfaceUp() *WGTunDevice {
 	iface, ifaceName, _, _ := SetInterfaceUpForConnection()
-	InterfaceName = ifaceName // Set the global variable for backward compatibility
+	InterfaceName = ifaceName
 	return iface
 }
 
 func configureTunMacOS(ifaceName, localIP, remoteIP string) error {
-	// Set the local address
-	cmd := exec.Command("ifconfig", ifaceName, "inet", localIP, remoteIP, "up")
-	if err := cmd.Run(); err != nil {
+	// Assign the point-to-point address pair and bring the interface up.
+	if err := runCmd("ifconfig", ifaceName, "inet", localIP, remoteIP, "up"); err != nil {
 		return err
 	}
 
-	// Set the MTU to allow Jumbo Frames
-	cmd = exec.Command("sudo", "ifconfig", ifaceName, "mtu", fmt.Sprintf("%d", 1500)) // MTU set to 1500 for standard MTU
-	// cmd = exec.Command("sudo", "ifconfig", ifaceName, "mtu", fmt.Sprintf("%d", 9000)) // MTU set to 9000 for Jumbo Frames
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to set MTU: %v, output: %s", err, output)
+	// Set MTU to match VPN_TUN_MTU — wireguard-go sets it via IOCTL but
+	// ifconfig is the authoritative setter on macOS for the kernel routing layer.
+	if err := runCmd("sudo", "ifconfig", ifaceName, "mtu", fmt.Sprintf("%d", VPN_TUN_MTU)); err != nil {
+		return fmt.Errorf("failed to set MTU: %w", err)
 	}
 
-	// Add the route to the remote address
-	cmd = exec.Command("route", "add", remoteIP, "-interface", ifaceName)
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-
-	return nil
+	// Add a host route for the remote tunnel endpoint.
+	return runCmd("route", "add", remoteIP, "-interface", ifaceName)
 }
 
-// UpdateInterfaceIP updates the IP address of an existing TUN interface
+// UpdateInterfaceIP updates the IP addresses of an existing TUN interface.
 func UpdateInterfaceIP(ifaceName string, localIP string, remoteIP string) error {
 	tunLog.Info("Updating %s with IPs: local=%s, remote=%s", ifaceName, localIP, remoteIP)
 
 	if runtime.GOOS == "darwin" {
-		// Delete the existing route configuration first
-		cmd := exec.Command("ifconfig", ifaceName, "inet", "0.0.0.0", "0.0.0.0", "down")
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to bring down interface: %v", err)
+		if err := runCmd("ifconfig", ifaceName, "inet", "0.0.0.0", "0.0.0.0", "down"); err != nil {
+			return fmt.Errorf("failed to bring down interface: %w", err)
 		}
-
-		// Set up the interface with new IPs
 		return configureTunMacOS(ifaceName, localIP, remoteIP)
-	} else {
-		// Linux configuration
-		pierIface, err := netlink.LinkByName(ifaceName)
-		if err != nil {
-			return fmt.Errorf("failed to get interface %s: %v", ifaceName, err)
-		}
-
-		// Remove existing addresses
-		addrs, err := netlink.AddrList(pierIface, netlink.FAMILY_V4)
-		if err != nil {
-			return fmt.Errorf("failed to list addresses: %v", err)
-		}
-
-		for _, addr := range addrs {
-			if err := netlink.AddrDel(pierIface, &addr); err != nil {
-				tunLog.Warn("Failed to delete address %s: %v", addr.String(), err)
-			}
-		}
-
-		// Add the new address
-		var addr *netlink.Addr
-		if utils.IS_NODE_HOST {
-			addr, err = netlink.ParseAddr(remoteIP + "/24")
-		} else {
-			addr, err = netlink.ParseAddr(localIP + "/24")
-		}
-		if err != nil {
-			return fmt.Errorf("failed to parse address: %v", err)
-		}
-
-		if err := netlink.AddrAdd(pierIface, addr); err != nil {
-			return fmt.Errorf("failed to add address: %v", err)
-		}
-
-		// Make sure the interface is up
-		if err := netlink.LinkSetUp(pierIface); err != nil {
-			return fmt.Errorf("failed to set interface up: %v", err)
-		}
-
-		return nil
 	}
+
+	// Linux
+	pierIface, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("failed to get interface %s: %w", ifaceName, err)
+	}
+
+	addrs, err := netlink.AddrList(pierIface, netlink.FAMILY_V4)
+	if err != nil {
+		return fmt.Errorf("failed to list addresses: %w", err)
+	}
+	for _, addr := range addrs {
+		if err := netlink.AddrDel(pierIface, &addr); err != nil {
+			tunLog.Warn("Failed to delete address %s: %v", addr.String(), err)
+		}
+	}
+
+	var addr *netlink.Addr
+	if utils.IS_NODE_HOST {
+		addr, err = netlink.ParseAddr(remoteIP + "/24")
+	} else {
+		addr, err = netlink.ParseAddr(localIP + "/24")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to parse address: %w", err)
+	}
+	if err := netlink.AddrAdd(pierIface, addr); err != nil {
+		return fmt.Errorf("failed to add address: %w", err)
+	}
+	if err := netlink.LinkSetUp(pierIface); err != nil {
+		return fmt.Errorf("failed to set interface up: %w", err)
+	}
+	return nil
 }
