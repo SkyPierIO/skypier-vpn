@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -216,9 +217,40 @@ func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 // @Produce      json
 // @Param        peerId   		path string  true  "Peer ID"
 // @Router       /connect/{peerId} [get]
-func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
+func Connect(node host.Host, dht *dht.IpfsDHT, registry *NodeRegistry) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
+		forceDial := isForceDialRequested(c)
+
+		if registry != nil && !forceDial {
+			requireFresh := true
+			if config, cfgErr := utils.LoadConfiguration("/etc/skypier/config.json"); cfgErr == nil {
+				requireFresh = config.NodeRequireFreshForDial
+			}
+
+			if requireFresh {
+				exists, fresh, record := registry.Freshness(peerId, time.Now().UTC())
+				if !exists {
+					c.IndentedJSON(http.StatusNotFound, gin.H{
+						"error":  "Peer is not present in the node metadata registry",
+						"peerId": peerId,
+						"hint":   "Wait for node announcement or retry with ?force=1",
+					})
+					return
+				}
+				if !fresh {
+					c.IndentedJSON(http.StatusNotFound, gin.H{
+						"error":      "Peer metadata is stale and cannot be dialed",
+						"peerId":     peerId,
+						"lastSeenAt": record.LastSeenAt.UTC().Format(time.RFC3339),
+						"ttlSeconds": int(registry.TTL().Seconds()),
+						"hint":       "Wait for fresh announcement or retry with ?force=1",
+					})
+					return
+				}
+			}
+		}
+
 		peerIdObj, err := peerstore.Decode(peerId)
 		if err != nil {
 			utils.APILog.Warn("Peerstore decoding error: Cannot decode Peer ID: %v", err)
@@ -363,6 +395,11 @@ func Connect(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 		}
 	}
 	return gin.HandlerFunc(fn)
+}
+
+func isForceDialRequested(c *gin.Context) bool {
+	force := strings.ToLower(strings.TrimSpace(c.Query("force")))
+	return force == "1" || force == "true" || force == "yes" || force == "on"
 }
 
 // Disconnect function to handle the disconnect endpoint
