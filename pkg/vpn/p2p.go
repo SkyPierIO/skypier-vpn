@@ -303,7 +303,7 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 
 		// CRITICAL: Protect this VPN connection from being pruned by the connection manager
 		// This prevents the connection manager from closing VPN streams when trimming connections
-		streamLog.Info("🛡️ Protecting VPN connection for peer %s", peerID)
+		streamLog.Info("Protecting VPN connection for peer %s", peerID)
 		node.ConnManager().Protect(peerID, "skypier-vpn")
 
 		// Check if we already have a connection to this peer
@@ -354,10 +354,6 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 		utils.NegotiateLog.Debug("Validated IPs for peer %s: local=%s, remote=%s",
 			peerID, validatedLocalIP, validatedRemoteIP)
 
-		// Use a larger buffer for better throughput (64KB instead of MTU-sized 1500)
-		// This reduces syscall overhead significantly for bulk transfers
-		buf_mtu := make([]byte, 65536)
-
 		// Initialize stats tracking for this connection
 		connStats := GetGlobalStats().GetOrCreate(conn.PeerID)
 
@@ -365,39 +361,18 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 		go func() {
 			defer func() {
 				// Unprotect the connection when the stream handler exits
-				streamLog.Debug("🛡️ Removing protection for peer %s (handler exit)", peerID)
+				streamLog.Debug("Removing protection for peer %s (handler exit)", peerID)
 				node.ConnManager().Unprotect(peerID, "skypier-vpn")
 				conn.CloseStream()
 				// Remove stats when connection ends
 				GetGlobalStats().Remove(conn.PeerID)
 			}()
-			for {
-				select {
-				case <-conn.StopChan:
-					streamLog.Debug("Stopping outgoing handler for peer %s", conn.PeerID.String())
-					return
-				default:
-					// Use our safe stream wrapper
-					safeStream := NewSafeStreamWrapper(conn)
-					// Use CopyWithCallback for real-time stats tracking
-					n, err := utils.CopyWithCallback(safeStream, conn.Interface, buf_mtu, func(bytes int64) {
-						connStats.RecordBytesSent(bytes)
-					})
-					if n > 0 {
-						streamLog.Data("⬅️", n, "from %s to stream", conn.InterfaceName)
-					}
-					if err != nil {
-						if err == ErrStreamClosed {
-							streamLog.Debug("Stream closed, stopping outgoing handler for peer %s", conn.PeerID)
-							return
-						}
-						streamLog.Error("Error copying data: %v", err)
-						if shouldCloseStream(err) {
-							streamLog.Warn("Closing stream for peer %s due to error", conn.PeerID)
-							connectionManager.StopConnection(conn.PeerID)
-							return
-						}
-					}
+			err := conn.pumpTunToStream(connStats)
+			if err != nil && err != ErrStreamClosed {
+				streamLog.Error("Error copying TUN->stream for peer %s: %v", conn.PeerID, err)
+				if shouldCloseStream(err) {
+					streamLog.Warn("Closing stream for peer %s due to error", conn.PeerID)
+					connectionManager.StopConnection(conn.PeerID)
 				}
 			}
 		}()
@@ -405,52 +380,11 @@ func makeStreamHandler(node host.Host) network.StreamHandler {
 		// Start the goroutine with error handling for Stream -> TUN (incoming data)
 		go func() {
 			defer conn.CloseStream()
-			zeroReadCount := 0
-			const maxZeroReads = 10 // Allow some zero reads before considering it a disconnect
-			for {
-				select {
-				case <-conn.StopChan:
-					streamLog.Debug("Stopping incoming handler for peer %s", conn.PeerID.String())
-					return
-				default:
-					// Use our safe stream wrapper
-					safeStream := NewSafeStreamWrapper(conn)
-					// Use CopyWithCallback for real-time stats tracking
-					n, err := utils.CopyWithCallback(conn.Interface, safeStream, buf_mtu, func(bytes int64) {
-						connStats.RecordBytesReceived(bytes)
-					})
-					if err != nil {
-						if err == ErrStreamClosed {
-							streamLog.Debug("Stream closed, stopping incoming handler for peer %s", conn.PeerID)
-							return
-						}
-						if err.Error() == "short buffer" {
-							continue // 0 bytes copied, continue
-						}
-						if n != 0 {
-							streamLog.Data("➡️", n, "from stream to %s", conn.InterfaceName)
-							streamLog.Error("Error copying data: %v", err)
-						}
-						if shouldCloseStream(err) {
-							connectionManager.StopConnection(conn.PeerID)
-							return
-						}
-					} else {
-						if n == 0 {
-							zeroReadCount++
-							if zeroReadCount >= maxZeroReads {
-								streamLog.Warn("Too many zero-byte reads (%d) for peer %s, closing", zeroReadCount, conn.PeerID)
-								connectionManager.StopConnection(conn.PeerID)
-								return
-							}
-							// Brief sleep to prevent busy loop during idle periods
-							// Reduced from 10ms to 1ms for lower latency
-							time.Sleep(1 * time.Millisecond)
-							continue
-						}
-						// Reset counter on successful read
-						zeroReadCount = 0
-					}
+			err := conn.pumpStreamToTun(connStats)
+			if err != nil && err != ErrStreamClosed {
+				streamLog.Error("Error copying stream->TUN for peer %s: %v", conn.PeerID, err)
+				if shouldCloseStream(err) {
+					connectionManager.StopConnection(conn.PeerID)
 				}
 			}
 		}()

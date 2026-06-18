@@ -79,8 +79,23 @@ func NegotiateIPs(conn *ConnectionContext, role string) (string, string, error) 
 
 	log.Printf("IP negotiation message sent successfully")
 
-	// For the server, we're done - just use our already assigned IPs
+	// For the server, we're done - just use our already assigned IPs.
 	if role == "server" {
+		// Drain the client's negotiation message from the stream before the
+		// data pump takes over. The client always sends one (it does so before
+		// reading our response, so this never deadlocks). If we leave it
+		// buffered, pumpStreamToTun reads its first bytes as a packet length
+		// prefix, gets a garbage length, and tears the stream down — which the
+		// client sees as an EOF mid-negotiation. Bound the read so a client that
+		// opens a stream but never sends can't wedge this handler goroutine.
+		stream.SetReadDeadline(time.Now().Add(10 * time.Second))
+		_, drainErr := ReadJSONMessage(stream, 1024)
+		stream.SetReadDeadline(time.Time{}) // clear deadline for the data pump
+		if drainErr != nil {
+			log.Printf("Error draining client negotiation message: %v", drainErr)
+			conn.CloseStream()
+			return "", "", drainErr
+		}
 		log.Printf("Server-side negotiation complete, using assigned IPs")
 		conn.IPNegotiated = true
 		return localIP, remoteIP, nil
