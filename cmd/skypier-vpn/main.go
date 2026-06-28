@@ -135,7 +135,7 @@ func main() {
 	api.GET("/connections", vpn.GetConnectionsTable)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
 	api.POST("/updateConfig", utils.UpdateConfiguration)
-	api.GET("/connect/:peerId", vpn.Connect(node, dht, nodeRegistry))
+	api.GET("/connect/:peerId", vpn.Connect(node, dht, nodeRegistry, config.NodeRequireFreshForDial))
 	api.GET("/peer/:peerId/info", vpn.GetPeerIPAddresses(node, dht))
 	api.GET("/disconnect/:peerId", vpn.Disconnect(node, dht))
 	api.GET("/connected_peers_count", vpn.GetConnectedPeersCount(node, dht))

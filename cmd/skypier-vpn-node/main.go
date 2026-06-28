@@ -90,7 +90,7 @@ func main() {
 	api.GET("/nickname", utils.Nickname)
 	api.GET("/getConfig", utils.GetConfiguration)
 	api.GET("/ping/:peerId", vpn.TestConnectivity(node, dht))
-	api.GET("/connect/:peerId", vpn.Connect(node, dht, nil))
+	api.GET("/connect/:peerId", vpn.Connect(node, dht, nil, false))
 	api.GET("/connections", vpn.GetConnectionsTable)
 
 	// Run with HTTP

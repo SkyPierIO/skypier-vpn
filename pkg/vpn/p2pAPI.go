@@ -217,17 +217,12 @@ func TestConnectivity(node host.Host, dht *dht.IpfsDHT) gin.HandlerFunc {
 // @Produce      json
 // @Param        peerId   		path string  true  "Peer ID"
 // @Router       /connect/{peerId} [get]
-func Connect(node host.Host, dht *dht.IpfsDHT, registry *NodeRegistry) gin.HandlerFunc {
+func Connect(node host.Host, dht *dht.IpfsDHT, registry *NodeRegistry, requireFresh bool) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		peerId := c.Param("peerId")
 		forceDial := isForceDialRequested(c)
 
 		if registry != nil && !forceDial {
-			requireFresh := true
-			if config, cfgErr := utils.LoadConfiguration("/etc/skypier/config.json"); cfgErr == nil {
-				requireFresh = config.NodeRequireFreshForDial
-			}
-
 			if requireFresh {
 				exists, fresh, record := registry.Freshness(peerId, time.Now().UTC())
 				if !exists {
