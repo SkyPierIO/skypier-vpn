@@ -7,7 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/libp2p/go-libp2p v0.48.0
 	github.com/libp2p/go-libp2p-kad-dht v0.41.0
-	github.com/libp2p/go-libp2p-pubsub v0.16.0
+	github.com/libp2p/go-libp2p-pubsub v0.17.0
 	github.com/mbndr/figlet4go v0.0.0-20190224160619-d6cef5b186ea
 	github.com/shirou/gopsutil/v4 v4.26.4
 	github.com/swaggo/files v1.0.1
