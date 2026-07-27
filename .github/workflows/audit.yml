@@ -23,13 +23,15 @@ jobs:
 
       # Set up Node.js environment
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: 20
 
     # Install pnpm
     - name: Install pnpm
-      run: npm install -g pnpm@latest
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10.34.5
 
     # Install dependencies and build the React app
     - name: Build React App
@@ -89,14 +91,16 @@ jobs:
 
       # Set up Node.js environment
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           # cache: 'pnpm'
 
       # Install pnpm
       - name: Install pnpm
-        run: npm install -g pnpm@latest
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
 
       # Install dependencies and build the React app
       - name: Build React App
