@@ -121,7 +121,7 @@ jobs:
       - name: Build
         run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o skypier-vpn-${{ matrix.os }}-${{ matrix.arch }} -ldflags "-s -w" -trimpath -buildvcs=false cmd/skypier-vpn-node/main.go
       - name: Upload Release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Skypier-VPN-${{ matrix.os }}-${{ matrix.arch }}
           path: skypier-vpn-${{ matrix.os }}-${{ matrix.arch }}
