@@ -1,7 +1,6 @@
 package vpn
 
 import (
-	"context"
 	"testing"
 
 	"github.com/libp2p/go-libp2p"
@@ -19,8 +18,6 @@ import (
 )
 
 func TestP2PNode(t *testing.T) {
-	ctx := context.Background()
-
 	// Mock configurations
 	// Use a random available port for the test
 	tcpPort := "0" // Using port 0 lets the OS assign an available port
@@ -44,7 +41,7 @@ func TestP2PNode(t *testing.T) {
 		libp2p.ConnectionManager(connmgr),
 		libp2p.NATPortMap(),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			idht, err := dht.New(ctx, h)
+			idht, err := dht.New(h)
 			return idht, err
 		}),
 		libp2p.ResourceManager(resourceManager),
