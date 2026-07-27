@@ -1,5 +1,5 @@
 # Base image: Official Go image based on Debian
-FROM golang:1.25.7-bookworm
+FROM golang:1.26.5-bookworm
 
 # Set environment variables
 ENV GO111MODULE=on \
