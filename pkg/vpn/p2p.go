@@ -112,7 +112,7 @@ func StartNode(ctx context.Context, innerConfig utils.InnerConfig, pk crypto.Pri
 		libp2p.EnableHolePunching(),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			// Configure DHT with options to limit connection usage
-			idht, err = dht.New(ctx, h,
+			idht, err = dht.New(h,
 				dht.Mode(dht.ModeClient),               // Client mode doesn't store or provide records
 				dht.Concurrency(2),                     // Limit concurrent queries
 				dht.QueryFilter(dht.PublicQueryFilter), // Only use public addresses
