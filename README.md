@@ -39,7 +39,7 @@
 
 Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to provide secure and private internet access. This project is currently under development and should not be used in production environments for security reasons.
 
-## 🚀 Features
+## Features
 
 - **Decentralized Network**: No central points of failure, no central server.
 - **Libp2p Integration**: Uses the same network library as Ethereum and various well known Blockchain projects.
@@ -47,18 +47,18 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 - **Privacy**: Ensures user anonymity by routing traffic through nodes hosted by the community all around the world.
 - **Token Gated Service**: We use NFTs for users subscription validity and proof of payment.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 > [!IMPORTANT]
 > This project is under development and should not be used in production environments for security reasons.
 
-## 📷 UI Screenshot
+## UI Screenshot
 
 | Light Theme   | Dark Theme |
 | ------------- | ------------- |
 | ![light](https://aqua-abstract-trout-227.mypinata.cloud/ipfs/QmYv5V5xQbXXXYVsGLMDkyNhjWxhb6jyFTFLsivKxPraiw)  | ![dark](https://aqua-abstract-trout-227.mypinata.cloud/ipfs/QmdyqxuPJJwh4K2L7mdSV6hbbPmgA16Whdpp1ygdMSwQEm)  |
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -92,7 +92,7 @@ go build -o skypier-vpn cmd/skypier-vpn/main.go
     sudo ./install.sh
     ```
 
-## 🛠️ Advanced Usage
+## Advanced Usage
 
 ### Configuration
 
@@ -109,19 +109,19 @@ A configuration file is created at first launch. But you can also start with you
 }
 ```
 
-## 📚 Documentation
+## Documentation
 
 For detailed documentation, please refer to the [Wiki](https://github.com/SkyPierIO/skypier-vpn/wiki).
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our CONTRIBUTING.md for guidelines.
 
-## 📧 Contact
+## Contact
 
 For any inquiries, please contact us at [info@skypier.Io](mailto://info@skypier.io).
 
-## 🧑‍💻 Want to hack on libp2p?
+## Want to hack on libp2p?
 
 [![](https://cdn.rawgit.com/libp2p/community/master/img/contribute.gif)](https://github.com/libp2p/community/blob/master/CONTRIBUTE.md)
 
