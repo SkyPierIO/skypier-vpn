@@ -92,7 +92,7 @@ jobs:
           cache-dependency-path: pkg/ui/web/pnpm-lock.yaml
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.34.5
 
@@ -134,7 +134,7 @@ jobs:
           cache-dependency-path: pkg/ui/web/pnpm-lock.yaml
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.34.5
 
