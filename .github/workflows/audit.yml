@@ -31,7 +31,7 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:
-        version: 10.34.5
+        version: 11.22.0
 
     # Install dependencies and build the React app
     - name: Build React App
@@ -100,7 +100,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.34.5
+          version: 11.22.0
 
       # Install dependencies and build the React app
       - name: Build React App
