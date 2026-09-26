@@ -1,9 +1,9 @@
 <p align="center">
   <a href="https://skypier.io/#gh-light-mode-only">
-    <img src="https://skypier.io/skypier_logo_baseline.png" width="318px" alt="skypier logo" />
+    <img src="https://skypier.io/assets/skypier_baseline-DHwNpluL.svg" width="318px" alt="skypier logo" />
   </a>
   <a href="https://skypier.io/#gh-dark-mode-only">
-    <img src="https://skypier.io/_astro/skypier_baseline.9f3ab695.svg" width="318px" alt="skypier logo" />
+    <img src="https://skypier.io/assets/skypier_baseline-DHwNpluL.svg" width="318px" alt="skypier logo" />
   </a>
 </p>
 
@@ -37,8 +37,9 @@
 
 ## Introduction
 
-Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to provide secure and private internet access. This project is currently under development and should not be used in production environments for security reasons.
+Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to provide secure and private internet access. This project is currently in early-beta phase.
 
+## Features
 ## Features
 
 - **Decentralized Network**: No central points of failure, no central server.
@@ -50,13 +51,13 @@ Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to 
 ## Disclaimer
 
 > [!IMPORTANT]
-> This project is under development and should not be used in production environments for security reasons.
+> This project is in early-beta phase and is provided "as is", without warranty of any kind. Use at your own risk.
 
 ## UI Screenshot
 
-| Light Theme   | Dark Theme |
-| ------------- | ------------- |
-| ![light](https://aqua-abstract-trout-227.mypinata.cloud/ipfs/QmYv5V5xQbXXXYVsGLMDkyNhjWxhb6jyFTFLsivKxPraiw)  | ![dark](https://aqua-abstract-trout-227.mypinata.cloud/ipfs/QmdyqxuPJJwh4K2L7mdSV6hbbPmgA16Whdpp1ygdMSwQEm)  |
+<p align="center">
+  <img src="https://skypier.io/screenshot-vpn.png" width="720px" alt="Skypier VPN UI screenshot" />
+</p>
 
 ## Installation
 
@@ -93,6 +94,7 @@ go build -o skypier-vpn cmd/skypier-vpn/main.go
     ```
 
 ## Advanced Usage
+## Advanced Usage
 
 ### Configuration
 
@@ -102,21 +104,24 @@ A configuration file is created at first launch. But you can also start with you
 {
     "nickname": "MySkypierNode",
     "logLevel": "info",
-    "privateKey": "<YOUR-PK>",
     "advertisePrivateAddresses": false,
     "swaggerEnabled": true,
     "dhtDiscovery": false
 }
 ```
 
+You could customize all the settings in the User Interface after launching the application.
+
 ## Documentation
 
 For detailed documentation, please refer to the [Wiki](https://github.com/SkyPierIO/skypier-vpn/wiki).
 
 ## Contributing
+## Contributing
 
 We welcome contributions! Please see our CONTRIBUTING.md for guidelines.
 
+## Contact
 ## Contact
 
 For any inquiries, please contact us at [info@skypier.Io](mailto://info@skypier.io).
