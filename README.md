@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://skypier.io/#gh-light-mode-only">
-    <img src="https://skypier.io/assets/skypier_baseline-DHwNpluL.svg" width="318px" alt="skypier logo" />
+    <img src="https://skypier.io/assets/skypier_baseline_dark--jRPboDh.svg" width="318px" alt="skypier logo" />
   </a>
   <a href="https://skypier.io/#gh-dark-mode-only">
     <img src="https://skypier.io/assets/skypier_baseline-DHwNpluL.svg" width="318px" alt="skypier logo" />
@@ -21,15 +21,16 @@
 
 <p align="center">
     <a href="#">
-    <img src="https://img.shields.io/github/followers/SkyPierIO" alt="Github followers" />
+        <img src="https://img.shields.io/github/followers/SkyPierIO?style=flat&logo=github&logoColor=white&color=013343&label=followers" alt="Github followers" />
     </a>
-    <img src="https://img.shields.io/github/issues-pr/SkyPierIO/skypier-vpn" alt="Github Issues" />
+    <a href="https://github.com/SkyPierIO/skypier-vpn/pulls">
+        <img src="https://img.shields.io/github/issues-pr/SkyPierIO/skypier-vpn?style=flat&logo=github&logoColor=white&color=013343" alt="Github Issues" />
     </a>
     <a href="https://twitter.com/SkypierIO">
-        <img src="https://img.shields.io/twitter/follow/SkypierIO" alt="Twitter" />
+        <img src="https://img.shields.io/twitter/follow/SkypierIO?style=flat&logo=x&logoColor=white&color=013343&labelColor=013343" alt="Twitter" />
     </a>
     <a href="https://github.com/SkyPierIO">
-        <img src="https://img.shields.io/github/license/SkyPierIO/SkyPierUI" alt="license" />
+        <img src="https://img.shields.io/github/license/SkyPierIO/SkyPierUI?style=flat&logo=github&logoColor=white&color=013343" alt="license" />
     </a>
 </p>
 
@@ -39,7 +40,6 @@
 
 Skypier VPN is a decentralized VPN solution leveraging the power of `libp2p` to provide secure and private internet access. This project is currently in early-beta phase.
 
-## Features
 ## Features
 
 - **Decentralized Network**: No central points of failure, no central server.
@@ -94,7 +94,6 @@ go build -o skypier-vpn cmd/skypier-vpn/main.go
     ```
 
 ## Advanced Usage
-## Advanced Usage
 
 ### Configuration
 
@@ -117,14 +116,12 @@ You could customize all the settings in the User Interface after launching the a
 For detailed documentation, please refer to the [Wiki](https://github.com/SkyPierIO/skypier-vpn/wiki).
 
 ## Contributing
-## Contributing
 
 We welcome contributions! Please see our CONTRIBUTING.md for guidelines.
 
 ## Contact
-## Contact
 
-For any inquiries, please contact us at [info@skypier.Io](mailto://info@skypier.io).
+For any inquiries, please contact us at [info@skypier.io](mailto:info@skypier.io).
 
 ## Want to hack on libp2p?
 
