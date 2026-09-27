@@ -19,9 +19,12 @@ OUTPUT_FILE="${DIST_DIR}/${APP_NAME}_${VERSION}_${ARCH}.deb"
 
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
-bash "${ROOT_DIR}/scripts/build-client.sh"
+bash "${ROOT_DIR}/scripts/build-ui.sh"
 
-mkdir -p "${DEBIAN_DIR}" "${BIN_DIR}" "${OPT_DIR}" "${DESKTOP_DIR}" "${DIST_DIR}"
+mkdir -p "${DEBIAN_DIR}" "${BIN_DIR}" "${OPT_DIR}" "${DESKTOP_DIR}" "${DIST_DIR}" "${ROOT_DIR}/build"
+
+echo -e "\n[+]\tGo build VPN Client for Linux (${ARCH})..."
+GOOS=linux GOARCH="${ARCH}" CGO_ENABLED=0 go build -o "${ROOT_DIR}/build/skypier-vpn" -ldflags "-s -w" -trimpath -buildvcs=false "${ROOT_DIR}/cmd/skypier-vpn"
 
 cat <<EOF > "${DEBIAN_DIR}/control"
 Package: ${APP_NAME}

@@ -14,7 +14,7 @@ APP_CONTENTS="${APP_BUNDLE}/Contents"
 APP_MACOS_DIR="${APP_CONTENTS}/MacOS"
 APP_RESOURCES_DIR="${APP_CONTENTS}/Resources"
 DMG_STAGING_DIR="${TEMP_DIR}/dmg"
-DMG_PATH="${DIST_DIR}/${APP_NAME}-${GOARCH}.dmg"
+DMG_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-${GOARCH}.dmg"
 MACOS_BINARY="${BUILD_DIR}/skypier-vpn-darwin-${GOARCH}"
 ICON_FILE="${ROOT_DIR}/scripts/darwin/skypier.icns"
 
@@ -30,7 +30,7 @@ bash "${ROOT_DIR}/scripts/build-ui.sh"
 mkdir -p "${BUILD_DIR}" "${DIST_DIR}" "${APP_MACOS_DIR}" "${APP_RESOURCES_DIR}" "${DMG_STAGING_DIR}"
 
 echo -e "\n[+]\tGo build VPN Client for macOS (${GOARCH})..."
-GOOS=darwin GOARCH="${GOARCH}" go build -o "${MACOS_BINARY}" -ldflags "-s -w" -trimpath -buildvcs=false ./cmd/skypier-vpn
+GOOS=darwin GOARCH="${GOARCH}" CGO_ENABLED=0 go build -o "${MACOS_BINARY}" -ldflags "-s -w" -trimpath -buildvcs=false ./cmd/skypier-vpn
 
 cp "${ICON_FILE}" "${APP_RESOURCES_DIR}/skypier.icns"
 cp "${MACOS_BINARY}" "${APP_MACOS_DIR}/skypier-vpn"
