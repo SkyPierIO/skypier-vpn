@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/SkyPierIO/skypier-vpn/pkg/utils"
 	"github.com/vishvananda/netlink"
@@ -210,7 +211,7 @@ func UpdateInterfaceIP(ifaceName string, localIP string, remoteIP string) error 
 		return fmt.Errorf("failed to get interface %s: %w", ifaceName, err)
 	}
 
-	addrs, err := netlink.AddrList(pierIface, netlink.FAMILY_V4)
+	addrs, err := netlink.AddrList(pierIface, syscall.AF_INET) // netlink.FAMILY_V4 is Linux-only
 	if err != nil {
 		return fmt.Errorf("failed to list addresses: %w", err)
 	}

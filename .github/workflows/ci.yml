@@ -29,6 +29,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # pkg/ui embeds web/dist, which is a gitignored build output; the lint
+      # and test jobs don't build the frontend, so provide a placeholder.
+      - name: Stub web UI build output
+        run: |
+          mkdir -p pkg/ui/web/dist
+          [ -e pkg/ui/web/dist/index.html ] || echo '<!doctype html>' > pkg/ui/web/dist/index.html
+
       - name: Check formatting
         run: |
           unformatted=$(gofmt -l .)
@@ -62,6 +69,13 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+
+      # pkg/ui embeds web/dist, which is a gitignored build output; the lint
+      # and test jobs don't build the frontend, so provide a placeholder.
+      - name: Stub web UI build output
+        run: |
+          mkdir -p pkg/ui/web/dist
+          [ -e pkg/ui/web/dist/index.html ] || echo '<!doctype html>' > pkg/ui/web/dist/index.html
 
       - name: Run unit tests
         run: go test ./...
