@@ -16,20 +16,20 @@ var (
 
 // ConnectionContext manages the state of a single VPN connection
 type ConnectionContext struct {
-	PeerID        peer.ID          // ID of the connected peer
-	Stream        network.Stream   // libp2p stream for communication with the peer
-	Interface     *WGTunDevice     // TUN interface for this connection
-	InterfaceName string           // Name of this connection's TUN interface
-	LocalIP       string           // Local IP for this TUN interface
-	RemoteIP      string           // Remote IP for this TUN interface
-	OrigLocalIP   string           // Original local IP (before negotiation)
-	OrigRemoteIP  string           // Original remote IP (before negotiation)
-	IPNegotiated  bool             // Whether IP negotiation has been completed
-	StopChan      chan struct{}    // Channel to signal termination of this connection
-	StopOnce      sync.Once        // Ensures the StopChan is closed only once
-	IsRunning     bool             // Whether the connection is active
-	mutex         sync.RWMutex     // Protects access to Stream and other fields during shutdown
-	streamClosed  bool             // Indicates if the stream has been closed
+	PeerID        peer.ID        // ID of the connected peer
+	Stream        network.Stream // libp2p stream for communication with the peer
+	Interface     *WGTunDevice   // TUN interface for this connection
+	InterfaceName string         // Name of this connection's TUN interface
+	LocalIP       string         // Local IP for this TUN interface
+	RemoteIP      string         // Remote IP for this TUN interface
+	OrigLocalIP   string         // Original local IP (before negotiation)
+	OrigRemoteIP  string         // Original remote IP (before negotiation)
+	IPNegotiated  bool           // Whether IP negotiation has been completed
+	StopChan      chan struct{}  // Channel to signal termination of this connection
+	StopOnce      sync.Once      // Ensures the StopChan is closed only once
+	IsRunning     bool           // Whether the connection is active
+	mutex         sync.RWMutex   // Protects access to Stream and other fields during shutdown
+	streamClosed  bool           // Indicates if the stream has been closed
 }
 
 // SafeStreamWrite safely writes to the stream, checking if it's closed first

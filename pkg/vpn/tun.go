@@ -23,12 +23,14 @@ func runCmd(name string, args ...string) error {
 // VPN_TUN_MTU is the MTU advertised to the OS for VPN tunnel interfaces.
 //
 // 1500 (ethernet) minus tunnel overhead:
-//   QUIC/UDP headers  ~40 bytes
-//   QUIC packet hdr   ~25 bytes
-//   Noise AEAD tag    ~16 bytes
-//   yamux frame hdr   ~12 bytes
-//   length prefix       4 bytes
-//   headroom           ~3 bytes
+//
+//	QUIC/UDP headers  ~40 bytes
+//	QUIC packet hdr   ~25 bytes
+//	Noise AEAD tag    ~16 bytes
+//	yamux frame hdr   ~12 bytes
+//	length prefix       4 bytes
+//	headroom           ~3 bytes
+//
 // Total overhead ~100 bytes → 1400 gives a safe margin and avoids outer
 // IP fragmentation, which silently hurts QUIC retransmit behaviour.
 const VPN_TUN_MTU = 1400
